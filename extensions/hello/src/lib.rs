@@ -1,5 +1,5 @@
 wit_bindgen::generate!({
-    path: "../../bones/wit",
+    path: "../../vendor/bones/wit",
     world: "extension",
 });
 

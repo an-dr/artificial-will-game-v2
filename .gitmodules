@@ -2,5 +2,5 @@
 	path = agents
 	url = https://github.com/an-dr/agents.git
 [submodule "bones"]
-	path = bones
+	path = vendor/bones
 	url = https://github.com/an-dr/bones.git

@@ -22,13 +22,26 @@ bus) with game behavior shipped as WASM extensions.
 
 ## Conventions
 
-- `bones/` and `agents/` are git submodules — do not edit their contents
-  directly; changes belong upstream. `bones` itself vendors its own copy of
-  `agents` (`bones/agents`) plus `bones/vendor/pubsub-bus` as nested
-  submodules; run `git submodule update --init --recursive` after cloning.
+- `agents/` (root) and `vendor/bones/` are git submodules. `vendor/` is
+  where a vendored code dependency belongs — the same convention `bones`
+  itself uses for `vendor/pubsub-bus`, while `agents` (workflow tooling,
+  not code) stays at root, again matching how `bones` embeds it. `bones`
+  itself vendors nested submodules (`vendor/bones/agents`,
+  `vendor/bones/vendor/pubsub-bus`); run
+  `git submodule update --init --recursive` after cloning.
+- We *can* patch `vendor/bones` when it makes integration better (we own
+  both repos) — commit those changes inside the `vendor/bones` checkout
+  itself, on its own branch/history, never folded into a v2 commit. A
+  bumped submodule pointer in v2 is a separate, deliberate commit.
 - Game logic lives under `extensions/` as WASM components implementing
-  `bones/wit/core.wit` — see `docs/architecture.md` for the planned module
-  breakdown and `extensions/hello/` for the reference extension shape.
+  `vendor/bones/wit/core.wit`, all members of one Cargo workspace
+  (`extensions/Cargo.toml`) so `cargo build --release --target
+  wasm32-wasip2` from there is the only build step — no scripts, no copy.
+  See `docs/architecture.md` for the planned module breakdown and
+  `extensions/hello/` for the reference extension shape.
+- No custom build scripts (PowerShell or otherwise) in this repo. Plain
+  `cargo build`/`cargo run`, tied together by `bones.toml` +
+  `BONES_CONFIG` (see root `README.md`).
 - Docs capture behavior and boundaries, not code, matching bones' own doc
-  policy (`bones/docs/index.md`): `docs/architecture.md` stays at system
-  altitude and should not need an update for an average refactor.
+  policy (`vendor/bones/docs/index.md`): `docs/architecture.md` stays at
+  system altitude and should not need an update for an average refactor.

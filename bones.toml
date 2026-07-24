@@ -1,0 +1,7 @@
+# Dev-time config for `vendor/bones`' app binary, read via BONES_CONFIG
+# (see vendor/bones/core/app/README.md) instead of being copied next to the
+# built exe. extensions_dir points straight at the extensions/ workspace's
+# own cargo output -- no copy step, cargo build is the only build system.
+extensions_dir = "extensions/target/wasm32-wasip2/release"
+window_title = "Artificial Will"
+game_core = true

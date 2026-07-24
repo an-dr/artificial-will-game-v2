@@ -3,8 +3,8 @@
 Status: draft — sketches the intended shape of the v2 reimplementation before
 any real level exists. Expect this to change once `extensions/hello` grows
 into an actual player/level and the plan meets reality. Not yet held to
-[bones' own altitude rule](../bones/docs/index.md) (behavior/boundaries, not
-code) since nothing below is built yet — tighten once it is.
+[bones' own altitude rule](../vendor/bones/docs/index.md) (behavior/boundaries,
+not code) since nothing below is built yet — tighten once it is.
 
 ## Why a v2
 
@@ -22,7 +22,7 @@ game-specific (Will's own behavior) as WASM extensions on top.
 
 | v1 (C++, hand-rolled) | v2 (bones) |
 | --- | --- |
-| `World` (`registry_`, `TileMap`, `CameraState`) | `game-core` native module (`bones/core/game-core`) |
+| `World` (`registry_`, `TileMap`, `CameraState`) | `game-core` native module (`vendor/bones/core/game-core`) |
 | `ComponentGeometry`, `ComponentSpriteRendering`, `ComponentCollider`, `ComponentType` | `EntityOp::Spawn` fields (`game-core/entity-op`) |
 | `TileMap` (own parser) | `game-core/load-tilemap` (Tiled `.tmx`, `"Collision"`/`"Ground"` layers) |
 | `SystemMovementAndCollision` | `game-core`'s own physics step (`rapier2d` or retro backend) |
@@ -87,12 +87,14 @@ Everything left of "Extensions" is bones as-is, unmodified. Everything in
   construction (no physics engine at all). Retro is the closer match;
   confirm once movement is actually playable.
 - **Audio.** v1 had none. `core/audio` (bones) is available whenever the
-  game wants footstep/hit sounds — see `bones/extensions/game_core_demo`
-  for the pattern.
+  game wants footstep/hit sounds — see
+  `vendor/bones/extensions/game_core_demo` for the pattern.
 
 ## Current state
 
 Only [`extensions/hello`](../extensions/hello) exists today — a smoke-test
-WASM extension proving the toolchain (bones submodule, `wasm32-wasip2`
-build, `dist/` assembly) works end to end. No `game-core` usage, no level,
-no player yet.
+WASM extension proving the toolchain works end to end: `vendor/bones` built
+as the engine, the `extensions/` workspace built to `wasm32-wasip2`, and
+`bones.toml` + `BONES_CONFIG` wiring the two together with plain `cargo`
+(see root [README.md](../README.md)). No `game-core` usage, no level, no
+player yet.
