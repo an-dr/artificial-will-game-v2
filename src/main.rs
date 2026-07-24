@@ -2,7 +2,11 @@
 //! (`vendor/bones/docs/design/modules.md`'s "Embedding bones") rather than
 //! running bones' own generic `app` binary + `bones.toml` -- we know
 //! exactly which modules this game needs (renderer, ui, game-core; no
-//! audio yet) and bake that in as code, not runtime config.
+//! audio yet) and bake that in as code, not runtime config. `runner` and
+//! `game-core` below are `Cargo.toml` path dependencies; no `use` or
+//! `extern crate` is needed to reach `runner::Engine` or
+//! `game_core::GameCore` -- every dependency has been addressable by its
+//! crate name directly since the 2018 edition.
 
 mod paths;
 
@@ -17,7 +21,6 @@ fn run() -> Result<(), String> {
     runner::Engine::new()
         .window("Artificial Will", 800, 600)
         .extensions_dir(paths::extensions_dir())
-        .saves_dir(paths::saves_dir())
         .renderer()
         .ui()
         .module(game_core::GameCore::new())
