@@ -1,0 +1,6 @@
+[submodule "agents"]
+	path = agents
+	url = https://github.com/an-dr/agents.git
+[submodule "bones"]
+	path = bones
+	url = https://github.com/an-dr/bones.git
