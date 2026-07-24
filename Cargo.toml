@@ -1,0 +1,25 @@
+# Standalone workspace-of-one. `runner`/`game-core` (path deps below)
+# transitively path-depend on `vendor/bones/shared/bones-messages`, which
+# self-isolates as its own `[workspace]` (it's built for both host and
+# WASM-guest targets, per `vendor/bones/docs/structure.md`). Because
+# `vendor/bones` is *nested inside* this repo (unlike `bones/embedding-demo`,
+# a sibling of `shared/`, not an ancestor), Cargo sees our workspace root as
+# an ancestor directory of that nested self-declared workspace and refuses
+# to resolve ("multiple workspace roots found") unless we exclude it here --
+# the same reason `vendor/bones/Cargo.toml` itself excludes
+# `shared/bones-messages` from its own workspace.
+[workspace]
+exclude = ["vendor/bones"]
+
+[package]
+name = "game"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "artificial-will"
+path = "src/main.rs"
+
+[dependencies]
+runner = { path = "vendor/bones/core/runner" }
+game-core = { path = "vendor/bones/core/game-core" }

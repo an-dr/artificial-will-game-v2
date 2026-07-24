@@ -33,15 +33,27 @@ bus) with game behavior shipped as WASM extensions.
   both repos) — commit those changes inside the `vendor/bones` checkout
   itself, on its own branch/history, never folded into a v2 commit. A
   bumped submodule pointer in v2 is a separate, deliberate commit.
+- The game (`Cargo.toml` + `src/` at repo root, package `game`, binary
+  `artificial-will`) embeds `bones` directly as path dependencies
+  (`runner`, `game-core`) — the `vendor/bones/embedding-demo` pattern —
+  rather than running bones' own generic `app` binary + `bones.toml`. Its
+  `[workspace]` must `exclude = ["vendor/bones"]`: `vendor/bones/shared/
+  bones-messages` self-isolates as its own workspace (built for both host
+  and WASM-guest targets), and since `vendor/bones` is nested inside this
+  repo, Cargo treats an un-excluded ancestor workspace as a conflict
+  ("multiple workspace roots found") — `embedding-demo` doesn't need this
+  because it's a *sibling* of `shared/`, not an ancestor.
 - Game logic lives under `extensions/` as WASM components implementing
-  `vendor/bones/wit/core.wit`, all members of one Cargo workspace
-  (`extensions/Cargo.toml`) so `cargo build --release --target
-  wasm32-wasip2` from there is the only build step — no scripts, no copy.
-  See `docs/architecture.md` for the planned module breakdown and
+  `vendor/bones/wit/core.wit`, all members of one separate Cargo workspace
+  (`extensions/Cargo.toml`, different target: `wasm32-wasip2`) so every
+  extension's `.wasm` lands in one predictable directory. See
+  `docs/architecture.md` for the planned module breakdown and
   `extensions/hello/` for the reference extension shape.
 - No custom build scripts (PowerShell or otherwise) in this repo. Plain
-  `cargo build`/`cargo run`, tied together by `bones.toml` +
-  `BONES_CONFIG` (see root `README.md`).
+  `cargo build`/`cargo run` builds the game *and* extensions (root
+  `build.rs` builds the `extensions/` workspace as a side effect).
+  `cargo xtask dist` (a real Rust program, `xtask/`) assembles a
+  self-contained `dist/` for distribution. See root `README.md`.
 - Docs capture behavior and boundaries, not code, matching bones' own doc
   policy (`vendor/bones/docs/index.md`): `docs/architecture.md` stays at
   system altitude and should not need an update for an average refactor.

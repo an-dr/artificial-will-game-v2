@@ -1,0 +1,26 @@
+//! Our own composition root, embedding bones directly as path dependencies
+//! (`vendor/bones/docs/design/modules.md`'s "Embedding bones") rather than
+//! running bones' own generic `app` binary + `bones.toml` -- we know
+//! exactly which modules this game needs (renderer, ui, game-core; no
+//! audio yet) and bake that in as code, not runtime config.
+
+mod paths;
+
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("fatal: {err}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<(), String> {
+    runner::Engine::new()
+        .window("Artificial Will", 800, 600)
+        .extensions_dir(paths::extensions_dir())
+        .saves_dir(paths::saves_dir())
+        .renderer()
+        .ui()
+        .module(game_core::GameCore::new())
+        .run()
+        .map_err(|err| err.to_string())
+}

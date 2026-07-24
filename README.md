@@ -15,15 +15,24 @@ uses ([an-dr/agents](https://github.com/an-dr/agents)).
 
 - `agents/` — the AI-agent workflow policy, a git submodule (root, same as
   `bones` embeds it in its own repo).
-- `vendor/bones/` — the engine, a git submodule. We can and do patch it
-  (see `vendor/bones/core/app/src/paths.rs`) — changes belong upstream,
-  committed inside that checkout and pushed deliberately, never silently
-  drifting from `an-dr/bones`.
-- `extensions/` — our own Cargo workspace: one crate per WASM extension
-  (game logic), sharing one `target/` so a single `cargo build` output is
-  directly loadable — no per-extension build step or copy.
-- `bones.toml` — dev-time engine config, read via `BONES_CONFIG` (below)
-  instead of living next to the built exe.
+- `vendor/bones/` — the engine, a git submodule. We can and do patch it —
+  changes belong upstream, committed inside that checkout and pushed
+  deliberately, never silently drifting from `an-dr/bones`.
+- `Cargo.toml` / `src/` — the game itself, package `game`, binary
+  `artificial-will`. Embeds `bones` directly as path dependencies
+  (`runner`, `game-core`), the same pattern `vendor/bones/embedding-demo`
+  documents, rather than running bones' own generic `app` binary. Its own
+  `[workspace]` excludes `vendor/bones` (see the comment in `Cargo.toml` —
+  required because `vendor/bones/shared/bones-messages` is itself a
+  self-isolated workspace nested inside this repo).
+- `build.rs` — builds the `extensions/` workspace as part of `cargo build`,
+  so there's no separate manual step for day-to-day iteration.
+- `extensions/` — a separate Cargo workspace (different target: `wasm32-
+  wasip2`): one crate per WASM extension (game logic), sharing one
+  `target/` so every extension's `.wasm` lands in one predictable directory.
+- `xtask/` — a small Rust program (not a shell script) that assembles a
+  self-contained `dist/`: run via `cargo xtask dist` (aliased in
+  `.cargo/config.toml`).
 
 ## Setup
 
@@ -41,27 +50,27 @@ generator you have).
 
 ## Build & run
 
-Plain `cargo` — no build scripts. Two independent builds (native engine,
-WASM extensions), one config file tying them together:
+Plain `cargo` — no build scripts for day-to-day work:
 
 ```sh
-# 1. Build the engine (from the vendored bones checkout)
-cargo build -p app --release --manifest-path vendor/bones/Cargo.toml
-
-# 2. Build every extension (one shared workspace, one shared target/)
-cargo build --release --target wasm32-wasip2 --manifest-path extensions/Cargo.toml
-
-# 3. Run, pointed at our own bones.toml (see "Configuration" below)
-BONES_CONFIG=$(pwd)/bones.toml ./vendor/bones/target/release/bones.exe
+cargo run --release
 ```
 
-## Configuration
+This builds `game` (embedding bones directly) *and*, via `build.rs`, every
+extension in `extensions/` — one command. `src/paths.rs` finds them at
+`extensions/target/wasm32-wasip2/release` relative to the exe (the dev-tree
+layout); a shipped `dist/` build has `extensions/` sitting right next to
+the binary instead, and that's checked first.
 
-`bones.toml` at repo root sets `extensions_dir` to
-`extensions/target/wasm32-wasip2/release` — the extensions workspace's own
-cargo output, resolved relative to `bones.toml` itself once `BONES_CONFIG`
-points at it (a small addition to `vendor/bones`, see its `app/README.md`
-"Configuration" section). No file ever gets copied into place.
+## Install / distribution
+
+```sh
+cargo xtask dist
+```
+
+A real Rust program (`xtask/`, not a script) that builds `game` and every
+extension, then assembles `dist/artificial-will(.exe)` +
+`dist/extensions/*.wasm` — copy `dist/` anywhere and run it as-is.
 
 ## Hello world
 

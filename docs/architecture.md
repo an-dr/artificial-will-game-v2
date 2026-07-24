@@ -92,9 +92,10 @@ Everything left of "Extensions" is bones as-is, unmodified. Everything in
 
 ## Current state
 
-Only [`extensions/hello`](../extensions/hello) exists today — a smoke-test
-WASM extension proving the toolchain works end to end: `vendor/bones` built
-as the engine, the `extensions/` workspace built to `wasm32-wasip2`, and
-`bones.toml` + `BONES_CONFIG` wiring the two together with plain `cargo`
-(see root [README.md](../README.md)). No `game-core` usage, no level, no
-player yet.
+The `game` package (root `Cargo.toml`/`src/`) embeds `bones` directly as
+path dependencies (`runner`, `game-core`) and already registers `game-core`
+as a module — but only [`extensions/hello`](../extensions/hello) exists as
+actual WASM content today, a smoke-test proving the toolchain works end to
+end (`cargo run --release` builds engine + extensions in one command via
+root `build.rs`; see root [README.md](../README.md)). No level, no player,
+no real `game-core` usage yet.

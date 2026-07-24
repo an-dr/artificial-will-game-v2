@@ -1,0 +1,14 @@
+# Standalone workspace-of-one -- root Cargo.toml (the `game` package) is
+# itself a `[workspace]` root for the same reason this needs to declare its
+# own: a package sitting under a `[workspace]`-bearing ancestor must either
+# be listed in that workspace's members or self-isolate.
+[workspace]
+
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"
