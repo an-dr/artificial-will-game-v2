@@ -50,10 +50,16 @@ bus) with game behavior shipped as WASM extensions.
   `docs/architecture.md` for the planned module breakdown and
   `extensions/hello/` for the reference extension shape.
 - No custom build scripts (PowerShell or otherwise) in this repo. Plain
-  `cargo build`/`cargo run` builds the game *and* extensions (root
-  `build.rs` builds the `extensions/` workspace as a side effect).
-  `cargo xtask dist` (a real Rust program, `xtask/`) assembles a
-  self-contained `dist/` for distribution. See root `README.md`.
+  `cargo build`/`cargo run` is enough for day-to-day iteration — builds the
+  game *and* extensions (root `build.rs` builds the `extensions/` workspace
+  as a side effect), no `dist/` needed. `cargo xtask dist` (a real Rust
+  program, `xtask/`) is only for when a standalone folder is actually
+  needed — handing a build to someone, or testing the shipped-layout path
+  resolution itself rather than the dev-tree fallback. Not a release/
+  installer pipeline (bones has no recommendation there either — see
+  ADR-011/`design/modules.md`: packaging is entirely the embedder's
+  concern); reach for `cargo-dist` or similar if that's ever needed. See
+  root `README.md`.
 - Docs capture behavior and boundaries, not code, matching bones' own doc
   policy (`vendor/bones/docs/index.md`): `docs/architecture.md` stays at
   system altitude and should not need an update for an average refactor.

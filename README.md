@@ -62,7 +62,13 @@ extension in `extensions/` — one command. `src/paths.rs` finds them at
 layout); a shipped `dist/` build has `extensions/` sitting right next to
 the binary instead, and that's checked first.
 
-## Install / distribution
+## Testing a self-contained build
+
+`cargo run` is enough for day-to-day iteration — it never needs `dist/`.
+Use `cargo xtask dist` when you actually need a standalone folder: handing
+a build to someone else, or verifying the shipped-layout path resolution
+itself (`extensions/` next to the exe, not the dev-tree fallback) actually
+works, rather than trusting the dev-tree fallback path:
 
 ```sh
 cargo xtask dist
@@ -70,7 +76,9 @@ cargo xtask dist
 
 A real Rust program (`xtask/`, not a script) that builds `game` and every
 extension, then assembles `dist/artificial-will(.exe)` +
-`dist/extensions/*.wasm` — copy `dist/` anywhere and run it as-is.
+`dist/extensions/*.wasm` in one command — copy `dist/` anywhere and run it
+as-is. This replaces manually rebuilding bones as an app and copying
+`.wasm` files into some folder by hand every time you want to test that.
 
 ## Hello world
 
