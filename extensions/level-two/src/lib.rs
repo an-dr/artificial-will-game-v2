@@ -16,8 +16,8 @@ use bones_messages::game_core::{
 };
 use bones_messages::gfx::LoadSprite;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
-use game_messages::{PauseChanged, PlayerDamaged, WILL_ENTITY_ID, WILL_SPAWN};
-use slime_state::{SlimeField, SlimeSpawn};
+use game_messages::{AttackRequested, PauseChanged, PlayerDamaged, WILL_ENTITY_ID, WILL_SPAWN};
+use slime_state::{SlimeField, SlimeSpawn, SLIME_COLLIDER_HALF_H, SLIME_COLLIDER_HALF_W};
 
 const LEVEL_TWO_TMX: &[u8] = include_bytes!("../assets/level-two.tmx");
 const GRASS_PNG: &[u8] = include_bytes!(
@@ -43,8 +43,6 @@ const ROCK_FRAME_SIZE: u32 = 128;
 const SLIME_FRAME_SIZE: u32 = 64;
 const SLIME_FRAME_COUNT: u32 = 6;
 const SLIME_FRAME_DURATION: f32 = 0.16;
-const SLIME_COLLIDER_HALF_W: f32 = 18.0;
-const SLIME_COLLIDER_HALF_H: f32 = 14.0;
 const ROCK_ID_START: u32 = 100;
 const SLIME_ID_START: u32 = 200;
 
@@ -277,6 +275,7 @@ impl Guest for Component {
         subscribe(EntityTransform::TOPIC);
         subscribe(Collision::TOPIC);
         subscribe(PauseChanged::TOPIC);
+        subscribe(AttackRequested::TOPIC);
         load_ruins_map();
         load_rock_sprites();
         spawn_rocks();
@@ -325,6 +324,22 @@ impl Guest for Component {
             PauseChanged::TOPIC if sender == "menu" => {
                 if let Ok(pause) = PauseChanged::decode(&payload) {
                     SLIME_FIELD.with(|field| field.borrow_mut().set_paused(pause.paused));
+                }
+            }
+            AttackRequested::TOPIC if sender == "will" => {
+                if let Ok(attack) = AttackRequested::decode(&payload) {
+                    let hit = SLIME_FIELD.with(|field| field.borrow_mut().attack(attack));
+                    if let Some(hit) = hit {
+                        publish_message(hit.hit);
+                        if hit.defeated {
+                            publish_entity_op(EntityOp::Despawn {
+                                entity_id: hit.hit.entity_id,
+                            });
+                        }
+                        if let Some(reward) = hit.reward {
+                            publish_message(reward);
+                        }
+                    }
                 }
             }
             _ => {}
