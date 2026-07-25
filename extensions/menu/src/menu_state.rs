@@ -38,6 +38,18 @@ impl MenuState {
         SessionRequest::Replace(level)
     }
 
+    pub fn cancel_level_selection(&mut self) -> bool {
+        if self.screen != Screen::LevelSelection {
+            return false;
+        }
+        self.screen = if self.active_level.is_some() {
+            Screen::Pause
+        } else {
+            Screen::Start
+        };
+        true
+    }
+
     pub fn pause(&mut self) -> bool {
         if self.screen != Screen::Gameplay || self.active_level.is_none() {
             return false;

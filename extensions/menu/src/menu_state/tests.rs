@@ -21,6 +21,20 @@ fn selecting_level_one_replaces_the_session_and_enters_gameplay() {
 }
 
 #[test]
+fn cancelling_level_selection_returns_to_its_session_context() {
+    let mut state = MenuState::default();
+    state.open_level_selection();
+    assert!(state.cancel_level_selection());
+    assert_eq!(state.screen(), Screen::Start);
+
+    state.select_level(Level::One);
+    state.pause();
+    state.open_level_selection();
+    assert!(state.cancel_level_selection());
+    assert_eq!(state.screen(), Screen::Pause);
+}
+
+#[test]
 fn escape_style_pause_and_resume_only_apply_to_live_gameplay() {
     let mut state = MenuState::default();
     assert!(!state.pause());
