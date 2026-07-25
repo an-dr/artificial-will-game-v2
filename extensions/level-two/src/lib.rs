@@ -5,18 +5,36 @@ wit_bindgen::generate!({
 
 use bones::core::host_api::{log, publish, Level};
 use bones_messages::game_core::{
-    BodyKind, EntityOp, EntityOpMessage, LoadTilemap, PhysicsWorlds, Shape, TilesetImage,
+    BodyKind, EntityOp, EntityOpMessage, LoadTilemap, PhysicsWorlds, Shape, Sprite,
+    SpritePresentation, TilesetImage,
 };
+use bones_messages::gfx::LoadSprite;
 use bones_messages::{EncodeMessage, Message};
 
 const LEVEL_TWO_TMX: &[u8] = include_bytes!("../assets/level-two.tmx");
 const STONE_PNG: &[u8] = include_bytes!(
     "../../../assets/Pixel Art Top Down - Basic v1.2.3/Texture/TX Tileset Stone Ground.png"
 );
+const SLIME_ONE_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Idle_with_shadow.png"
+);
+const SLIME_TWO_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Idle_with_shadow.png"
+);
+const SLIME_THREE_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Idle_with_shadow.png"
+);
 
 const WILL_ENTITY_ID: u32 = 1;
 const STONE_SPRITE_ID: u32 = 20;
+const SLIME_SPRITE_IDS: [u32; 3] = [30, 31, 32];
+const SLIME_FRAME_SIZE: u32 = 64;
+const SLIME_FRAME_COUNT: u32 = 6;
+const SLIME_FRAME_DURATION: f32 = 0.16;
+const SLIME_COLLIDER_HALF_W: f32 = 18.0;
+const SLIME_COLLIDER_HALF_H: f32 = 14.0;
 const ROCK_ID_START: u32 = 100;
+const SLIME_ID_START: u32 = 200;
 const ROCK_COLOR: (u8, u8, u8, u8) = (92, 94, 88, 255);
 const ROCKS: &[(f32, f32, f32, f32)] = &[
     (144.0, 144.0, 30.0, 26.0),
@@ -41,6 +59,14 @@ const ROCKS: &[(f32, f32, f32, f32)] = &[
     (288.0, 768.0, 30.0, 30.0),
     (512.0, 800.0, 36.0, 28.0),
     (752.0, 784.0, 28.0, 36.0),
+];
+const SLIMES: &[(u32, f32, f32)] = &[
+    (SLIME_SPRITE_IDS[0], 480.0, 288.0),
+    (SLIME_SPRITE_IDS[1], 480.0, 576.0),
+    (SLIME_SPRITE_IDS[2], 240.0, 528.0),
+    (SLIME_SPRITE_IDS[0], 800.0, 512.0),
+    (SLIME_SPRITE_IDS[1], 640.0, 752.0),
+    (SLIME_SPRITE_IDS[2], 416.0, 720.0),
 ];
 
 fn publish_entity_op(op: EntityOp) {
@@ -79,6 +105,58 @@ fn spawn_rocks() {
     }
 }
 
+fn slime_presentation(sprite_id: u32) -> SpritePresentation {
+    SpritePresentation {
+        sprite: Sprite {
+            sprite_id,
+            frame_w: SLIME_FRAME_SIZE,
+            frame_h: SLIME_FRAME_SIZE,
+            frame_count: SLIME_FRAME_COUNT,
+            frame_duration: SLIME_FRAME_DURATION,
+        },
+        frames_per_row: SLIME_FRAME_COUNT,
+        draw_w: SLIME_FRAME_SIZE,
+        draw_h: SLIME_FRAME_SIZE,
+        looping: true,
+        advance_while_stopped: true,
+        flip_h: false,
+        flip_v: false,
+    }
+}
+
+fn load_slime_sprites() {
+    for (id, png_bytes) in [
+        (SLIME_SPRITE_IDS[0], SLIME_ONE_PNG),
+        (SLIME_SPRITE_IDS[1], SLIME_TWO_PNG),
+        (SLIME_SPRITE_IDS[2], SLIME_THREE_PNG),
+    ] {
+        publish(LoadSprite::TOPIC, &LoadSprite { id, png_bytes }.encode());
+    }
+}
+
+fn spawn_slimes() {
+    for (index, &(sprite_id, x, y)) in SLIMES.iter().enumerate() {
+        let entity_id = SLIME_ID_START + index as u32;
+        let presentation = slime_presentation(sprite_id);
+        publish_entity_op(EntityOp::Spawn {
+            entity_id,
+            x,
+            y,
+            sprite: Some(presentation.sprite),
+            square_color: (0, 0, 0, 0),
+            shape: Shape::Rect,
+            collider_half_w: SLIME_COLLIDER_HALF_W,
+            collider_half_h: SLIME_COLLIDER_HALF_H,
+            body_kind: BodyKind::Fixed,
+            worlds: PhysicsWorlds::RETRO,
+        });
+        publish_entity_op(EntityOp::SetSprite {
+            entity_id,
+            presentation,
+        });
+    }
+}
+
 fn configure_camera() {
     publish_entity_op(EntityOp::SetCameraFollow {
         entity_id: WILL_ENTITY_ID,
@@ -100,13 +178,20 @@ impl Guest for Component {
                 entity_id: ROCK_ID_START + index as u32,
             });
         }
+        for index in 0..SLIMES.len() {
+            publish_entity_op(EntityOp::Despawn {
+                entity_id: SLIME_ID_START + index as u32,
+            });
+        }
     }
 
     fn init() {
         load_stone_map();
         spawn_rocks();
+        load_slime_sprites();
+        spawn_slimes();
         configure_camera();
-        log(Level::Info, "level-two: stone field ready");
+        log(Level::Info, "level-two: stone field and idle slimes ready");
     }
 
     fn on_tick(_dt: f32) {}

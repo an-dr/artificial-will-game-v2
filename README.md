@@ -74,6 +74,11 @@ Will keeps moving during an attack, but facing remains fixed until its two
 frames finish. Walk and idle animations select down, up, or side sheets; the
 right-facing side sheet is mirrored.
 
+Level One preserves the original grass map and pushable boxes. Level Two is a
+denser stone field with fixed rock obstacles and six animated idle slimes. The
+slimes currently block movement but do not move, pursue Will, attack, or deal
+damage.
+
 ## Testing a self-contained build
 
 `cargo run` is enough for day-to-day iteration — it never needs `dist/`.
@@ -90,5 +95,6 @@ A real Rust program (`xtask/`, not a script) that builds `game` and every
 current extension target, then assembles `dist/artificial-will(.exe)`,
 `dist/core/*.wasm`, and `dist/levels/*.wasm` in one command — copy `dist/`
 anywhere and run it as-is. The current contents are `core/menu.wasm`,
-`core/will.wasm`, and `levels/level_one.wasm`. This replaces manually
-rebuilding bones as an app and copying `.wasm` files into place.
+`core/will.wasm`, `levels/level_one.wasm`, and `levels/level_two.wasm`. This
+replaces manually rebuilding bones as an app and copying `.wasm` files into
+place.

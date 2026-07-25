@@ -14,9 +14,9 @@ flowchart LR
     Menu["menu.wasm<br/>navigation + settings + sessions"] -->|"load / unload"| Manager["bones extension manager"]
     Menu -->|"screen-space gfx + display"| Renderer
     Menu -->|"pause / reset"| GameCore
-    Manager --> Level["level_one.wasm<br/>TMX + boxes + camera setup"]
+    Manager --> Level["selected level.wasm<br/>TMX + entities + camera setup"]
     Manager --> Will
-    Level["level_one.wasm<br/>TMX + boxes + camera setup"] -->|"typed game-core operations"| GameCore
+    Level["selected level.wasm<br/>TMX + entities + camera setup"] -->|"typed game-core operations"| GameCore
     Will["will.wasm<br/>character + controls + state"] -->|"typed game-core operations"| GameCore
     GameCore["bones game-core<br/>ECS + retro physics + tilemap + camera"] -->|"gfx batches"| Renderer
     Renderer["bones renderer"] --> Window["SDL3 window"]
@@ -25,7 +25,7 @@ flowchart LR
 
 The root `game` binary embeds the bones runner, renderer, and game-core
 modules. It starts only `menu`; the menu is the sole authorized runtime
-extension controller and loads `level_one` plus `will` after selection.
+extension controller and loads the selected level plus `will` after selection.
 Returning home unloads both and resets game-core, while Escape pauses the
 native simulation and Will's own behavior without destroying the session.
 Each gameplay component embeds its own TMX or image bytes, so runtime behavior
@@ -39,12 +39,16 @@ follow. The port added the generally reusable `SetSprite`, camera-smoothing,
 and four/eight-direction `ObjectFacing` capabilities to bones; presentation
 wire compatibility and behavior are documented in the engine's ADR-023.
 
-The `level_one` component owns its TMX, tileset, boxes, and camera setup through
-game-core operations. The `will` component owns character assets and spawning,
-held controls, and the idle/walk/attack state machine. Its bindings are
-isolated from the pure state modules, and it uses bones `ObjectFacing` in
-cardinal mode to preserve v1 behavior. Switching animation changes presentation
-in place and never replaces Will's transform or collider.
+Each level component owns its TMX, tileset, entities, and camera setup through
+game-core operations. Level One preserves the original grass field and
+pushable boxes. Level Two supplies a denser stone map, fixed rocks, and passive
+idle-animated slime colliders. The slimes deliberately have no movement,
+pursuit, attack, damage, or combat behavior. The `will` component owns
+character assets and spawning, held controls, and the idle/walk/attack state
+machine. Its bindings are isolated from the pure state modules, and it uses
+bones `ObjectFacing` in cardinal mode to preserve v1 behavior. Switching
+animation changes presentation in place and never replaces Will's transform
+or collider.
 
 The persistent `menu` component owns start, pause, settings, and level-selection
 screens. It renders them as screen-space rectangles and text through the game
@@ -75,5 +79,6 @@ asset tracked by v1, including upstream license and source-package files.
 `cargo build` also builds the WASM workspace. `cargo xtask dist` selects the
 workspace's current `cdylib` targets and validated distribution groups from
 Cargo metadata. It produces the executable with `core/menu.wasm`,
-`core/will.wasm`, and `levels/level_one.wasm`, preventing removed, stale, or
-ungrouped artifacts from leaking into a distribution.
+`core/will.wasm`, `levels/level_one.wasm`, and `levels/level_two.wasm`,
+preventing removed, stale, or ungrouped artifacts from leaking into a
+distribution.

@@ -12,6 +12,7 @@ to keep navigation in WASM while loading only the selected gameplay content.
 | bones extension manager | Recursive catalog, startup allow-list, load/unload/reload, and lifecycle results |
 | `will.wasm` | Character resources, entity, input, and cleanup |
 | `level_one.wasm` | Level resources, entities, camera, and cleanup |
+| `level_two.wasm` | Stone terrain, fixed rocks, passive slimes, camera, and cleanup |
 | native `game-core` | Simulation, rendering, pause, and world reset |
 
 The menu is the only startup extension. Gameplay extensions are cataloged but
@@ -25,6 +26,7 @@ stateDiagram-v2
     Start --> Settings
     Start --> LevelSelection: Start
     LevelSelection --> Gameplay: Level One
+    LevelSelection --> Gameplay: Level Two
     Gameplay --> Pause: Escape
     Pause --> Gameplay: Resume
     Pause --> Settings
@@ -75,7 +77,8 @@ dist/
 │   ├── menu.wasm
 │   └── will.wasm
 └── levels/
-    └── level_one.wasm
+    ├── level_one.wasm
+    └── level_two.wasm
 ```
 
 Cargo package metadata assigns each component its distribution group. The
