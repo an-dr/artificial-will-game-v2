@@ -5,12 +5,19 @@ wit_bindgen::generate!({
     world: "extension",
 });
 
-use bones::core::host_api::{log, publish, Level};
+mod box_state;
+
+use std::cell::RefCell;
+
+use bones::core::host_api::{log, publish, subscribe, Level};
 use bones_messages::game_core::{
-    BodyKind, EntityOp, EntityOpMessage, LoadTilemap, PhysicsWorlds, Shape, Sprite, TilesetImage,
+    BodyKind, EntityOp, EntityOpMessage, EntityTransform, LoadTilemap, PhysicsWorlds, Shape,
+    Sprite, TilesetImage,
 };
 use bones_messages::gfx::LoadSprite;
-use bones_messages::{EncodeMessage, Message};
+use bones_messages::{DecodeMessage, EncodeMessage, Message};
+use box_state::{BoxField, BoxSpawn, BOX_HALF_H, BOX_HALF_W};
+use game_messages::{AttackRequested, WILL_ENTITY_ID};
 
 const LEVEL_ONE_TMX: &[u8] = include_bytes!("../assets/level-one.tmx");
 const GRASS_PNG: &[u8] = include_bytes!(
@@ -18,15 +25,38 @@ const GRASS_PNG: &[u8] = include_bytes!(
 );
 const BOX_PNG: &[u8] = include_bytes!("../../../assets/box.png");
 
-const WILL_ENTITY_ID: u32 = 1;
 const BOX_SPRITE_ID: u32 = 2;
 const GRASS_SPRITE_ID: u32 = 3;
 const FRAME_SIZE: u32 = 64;
 const BOX_ID_START: u32 = 2;
-const BOXES: &[(f32, f32)] = &[(242.0, 442.0), (432.0, 532.0), (532.0, 432.0)];
+const BOXES: &[BoxSpawn] = &[
+    BoxSpawn {
+        x: 242.0,
+        y: 442.0,
+        coins: 1,
+    },
+    BoxSpawn {
+        x: 432.0,
+        y: 532.0,
+        coins: 2,
+    },
+    BoxSpawn {
+        x: 532.0,
+        y: 432.0,
+        coins: 3,
+    },
+];
+
+thread_local! {
+    static BOX_FIELD: RefCell<BoxField> = RefCell::new(BoxField::new(BOX_ID_START, BOXES));
+}
 
 fn publish_entity_op(op: EntityOp) {
     publish(EntityOpMessage::TOPIC, &EntityOpMessage(op).encode());
+}
+
+fn publish_message<M: Message + EncodeMessage>(message: M) {
+    publish(M::TOPIC, &message.encode());
 }
 
 fn load_level_assets() {
@@ -66,16 +96,16 @@ fn spawn_box(entity_id: u32, x: f32, y: f32) {
         }),
         square_color: (0, 0, 0, 0),
         shape: Shape::Rect,
-        collider_half_w: 20.0,
-        collider_half_h: 28.0,
+        collider_half_w: BOX_HALF_W,
+        collider_half_h: BOX_HALF_H,
         body_kind: BodyKind::Frictionless,
         worlds: PhysicsWorlds::RETRO,
     });
 }
 
 fn spawn_level_entities() {
-    for (index, &(x, y)) in BOXES.iter().enumerate() {
-        spawn_box(BOX_ID_START + index as u32, x, y);
+    for (index, spawn) in BOXES.iter().enumerate() {
+        spawn_box(BOX_ID_START + index as u32, spawn.x, spawn.y);
     }
 }
 
@@ -103,6 +133,9 @@ impl Guest for Component {
     }
 
     fn init() {
+        BOX_FIELD.with(|field| *field.borrow_mut() = BoxField::new(BOX_ID_START, BOXES));
+        subscribe(EntityTransform::TOPIC);
+        subscribe(AttackRequested::TOPIC);
         load_level_assets();
         spawn_level_entities();
         configure_camera();
@@ -111,7 +144,33 @@ impl Guest for Component {
 
     fn on_tick(_dt: f32) {}
 
-    fn on_message(_topic: String, _sender: String, _payload: Vec<u8>) -> Option<Vec<u8>> {
+    fn on_message(topic: String, sender: String, payload: Vec<u8>) -> Option<Vec<u8>> {
+        match topic.as_str() {
+            EntityTransform::TOPIC if sender == "game-core" => {
+                if let Ok(transform) = EntityTransform::decode(&payload) {
+                    BOX_FIELD.with(|field| {
+                        field.borrow_mut().update_transform(
+                            transform.entity_id,
+                            transform.x,
+                            transform.y,
+                        )
+                    });
+                }
+            }
+            AttackRequested::TOPIC if sender == "will" => {
+                if let Ok(attack) = AttackRequested::decode(&payload) {
+                    let destroyed = BOX_FIELD.with(|field| field.borrow_mut().attack(attack));
+                    if let Some(destroyed) = destroyed {
+                        publish_message(destroyed.hit);
+                        publish_entity_op(EntityOp::Despawn {
+                            entity_id: destroyed.hit.entity_id,
+                        });
+                        publish_message(destroyed.reward);
+                    }
+                }
+            }
+            _ => {}
+        }
         None
     }
 }
@@ -131,5 +190,14 @@ mod tests {
             .collect::<HashSet<_>>();
         assert_eq!(ids.len(), BOXES.len());
         assert!(!ids.contains(&WILL_ENTITY_ID));
+    }
+
+    #[test]
+    fn every_box_contains_a_deterministic_coin_reward() {
+        assert!(BOXES.iter().all(|spawn| spawn.coins > 0));
+        assert_eq!(
+            BOXES.iter().map(|spawn| spawn.coins).collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
     }
 }

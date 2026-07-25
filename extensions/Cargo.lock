@@ -94,6 +94,7 @@ name = "level-one"
 version = "0.1.0"
 dependencies = [
  "bones-messages",
+ "game-messages",
  "wit-bindgen",
 ]
 
