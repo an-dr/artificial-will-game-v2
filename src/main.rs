@@ -1,7 +1,7 @@
 //! Our own composition root, embedding bones directly as path dependencies
 //! (`vendor/bones/docs/design/modules.md`'s "Embedding bones") rather than
 //! running bones' own generic `app` binary + `bones.toml` -- we know
-//! exactly which modules this game needs (renderer, ui, game-core; no
+//! exactly which modules this game needs (renderer and game-core; no
 //! audio yet) and bake that in as code, not runtime config. `runner` and
 //! `game-core` below are `Cargo.toml` path dependencies; no `use` or
 //! `extern crate` is needed to reach `runner::Engine` or
@@ -24,7 +24,6 @@ fn run() -> Result<(), String> {
         .startup_extension("menu")
         .extension_controller("menu")
         .renderer()
-        .ui()
         .module(game_core::GameCore::new())
         .run()
         .map_err(|err| err.to_string())

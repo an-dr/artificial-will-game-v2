@@ -35,8 +35,9 @@ stateDiagram-v2
 ```
 
 Start provides Start, Settings, and Quit. Pause provides Resume, Settings,
-Level Selection, Main Menu, and Quit. UI interaction supports mouse and
-keyboard through bones' egui input layer.
+Level Selection, Main Menu, and Quit. The menu draws game-native screen-space
+graphics through the renderer and handles mouse hit-testing plus arrow/WASD
+selection and Enter/Space activation directly from the input bus.
 
 ## Session transitions
 
@@ -52,8 +53,8 @@ replacement for extension cleanup.
 
 Esc pauses native simulation and character behavior without unloading either
 gameplay extension, preserving the exact session for Resume. The menu keeps
-receiving frame ticks and publishing its immediate-mode UI while gameplay is
-paused.
+receiving frame ticks and publishing its game-rendered overlay while gameplay
+is paused.
 
 ## Display preferences
 

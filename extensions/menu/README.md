@@ -7,8 +7,10 @@ loaded and unloaded around it.
 Display preferences use a small versioned binary record. Invalid or unsupported
 saved data falls back to 800×600 windowed mode.
 
-Menus work with the mouse or egui's Tab/Enter keyboard navigation. Enter opens
-level selection from startup; Escape opens and resumes the pause menu.
+Menus are rendered by the game renderer as screen-space rectangles and text;
+they do not use the app UI module. Use the mouse or arrow/WASD keys to select
+items, Enter or Space to activate them, and Escape to open or resume the pause
+menu.
 
 Build from the parent extension workspace:
 

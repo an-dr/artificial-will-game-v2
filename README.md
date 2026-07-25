@@ -64,8 +64,8 @@ directories next to the binary instead, and that layout is checked first.
 
 ## Controls
 
-- Use the mouse or Tab/Enter to navigate menus. Enter opens level selection
-  from the start screen.
+- Use the mouse or the arrow/WASD keys to navigate menus. Enter or Space
+  activates the selected item.
 - Press Escape during play to pause; press it again to resume.
 - Move with WASD or the arrow keys at 160 pixels per second on each axis.
 - Press Space to play the facing-dependent attack animation once.

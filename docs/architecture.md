@@ -12,8 +12,7 @@ flowchart LR
     Platform["bones platform<br/>window + input + tick"] -->|"input/* + core/tick"| Menu
     Platform -->|"input/* + core/tick"| Will
     Menu["menu.wasm<br/>navigation + settings + sessions"] -->|"load / unload"| Manager["bones extension manager"]
-    Menu -->|"ui specs"| UI["bones UI"]
-    Menu -->|"display"| Renderer
+    Menu -->|"screen-space gfx + display"| Renderer
     Menu -->|"pause / reset"| GameCore
     Manager --> Level["level_one.wasm<br/>TMX + boxes + camera setup"]
     Manager --> Will
@@ -24,7 +23,7 @@ flowchart LR
     Platform --> Renderer
 ```
 
-The root `game` binary embeds the bones runner, renderer, UI, and game-core
+The root `game` binary embeds the bones runner, renderer, and game-core
 modules. It starts only `menu`; the menu is the sole authorized runtime
 extension controller and loads `level_one` plus `will` after selection.
 Returning home unloads both and resets game-core, while Escape pauses the
@@ -48,9 +47,11 @@ cardinal mode to preserve v1 behavior. Switching animation changes presentation
 in place and never replaces Will's transform or collider.
 
 The persistent `menu` component owns start, pause, settings, and level-selection
-screens. It queries display modes from the native host, applies resolution and
-fullscreen changes through typed renderer messages, and stores a strict
-versioned preference record through bones persistence.
+screens. It renders them as screen-space rectangles and text through the game
+renderer, performs mouse hit-testing in the same logical canvas, and consumes
+keyboard navigation directly. It queries display modes from the native host,
+applies resolution and fullscreen changes through typed renderer messages, and
+stores a strict versioned preference record through bones persistence.
 
 ## Fidelity to v1
 

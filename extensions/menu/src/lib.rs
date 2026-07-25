@@ -5,6 +5,7 @@ wit_bindgen::generate!({
 });
 
 mod display_preferences;
+mod game_ui;
 mod level;
 mod menu_state;
 mod resolution_options;
