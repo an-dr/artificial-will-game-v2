@@ -7,7 +7,7 @@ fn every_menu_screen_builds_centered_game_buttons() {
     let resolutions = [(800, 600), (1920, 1080)];
     for (screen, expected) in [
         (Screen::Start, 3),
-        (Screen::LevelSelection, 2),
+        (Screen::LevelSelection, 3),
         (Screen::Pause, 5),
         (Screen::Settings, 4),
     ] {

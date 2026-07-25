@@ -21,6 +21,18 @@ fn selecting_level_one_replaces_the_session_and_enters_gameplay() {
 }
 
 #[test]
+fn selecting_level_two_uses_its_independent_extension() {
+    let mut state = MenuState::default();
+    state.open_level_selection();
+    assert_eq!(
+        state.select_level(Level::Two),
+        SessionRequest::Replace(Level::Two)
+    );
+    assert_eq!(state.active_level(), Some(Level::Two));
+    assert_eq!(Level::Two.extension_name(), "level_two");
+}
+
+#[test]
 fn cancelling_level_selection_returns_to_its_session_context() {
     let mut state = MenuState::default();
     state.open_level_selection();

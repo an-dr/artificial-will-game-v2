@@ -15,6 +15,9 @@ fn main() {
     println!("cargo:rerun-if-changed=extensions/level-one/Cargo.toml");
     println!("cargo:rerun-if-changed=extensions/level-one/src");
     println!("cargo:rerun-if-changed=extensions/level-one/assets");
+    println!("cargo:rerun-if-changed=extensions/level-two/Cargo.toml");
+    println!("cargo:rerun-if-changed=extensions/level-two/src");
+    println!("cargo:rerun-if-changed=extensions/level-two/assets");
     println!("cargo:rerun-if-changed=extensions/menu/Cargo.toml");
     println!("cargo:rerun-if-changed=extensions/menu/src");
     println!("cargo:rerun-if-changed=extensions/will/Cargo.toml");
@@ -26,7 +29,12 @@ fn main() {
         .args(["build", "--release", "--target", "wasm32-wasip2"])
         .current_dir(&extensions_dir)
         .status()
-        .unwrap_or_else(|err| panic!("failed to run cargo for {}: {err}", extensions_dir.display()));
+        .unwrap_or_else(|err| {
+            panic!(
+                "failed to run cargo for {}: {err}",
+                extensions_dir.display()
+            )
+        });
     assert!(
         status.success(),
         "building {} failed",

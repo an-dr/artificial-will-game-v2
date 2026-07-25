@@ -3,8 +3,10 @@
 The character-specific WASM component for Artificial Will. It owns input
 interpretation and Will's behavior while publishing typed commands to the
 reusable bones host modules. Character asset and entity bindings are isolated
-in `src/character.rs`; [`level-one`](../level-one) owns the level's TMX, boxes,
-and camera setup.
+in `src/character.rs`; the level components own terrain, obstacles, and camera
+setup. Will uses the frictionless retro body kind: held input remains immediate
+with no carried momentum, while fixed level geometry can still push him out of
+overlap.
 
 Controls: move with WASD or the arrow keys. Movement preserves the original
 160-pixel-per-second speed on each axis, including unnormalized diagonals.

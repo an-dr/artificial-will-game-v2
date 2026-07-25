@@ -91,6 +91,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "level-two"
+version = "0.1.0"
+dependencies = [
+ "bones-messages",
+ "wit-bindgen",
+]
+
+[[package]]
 name = "log"
 version = "0.4.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"

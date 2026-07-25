@@ -15,8 +15,9 @@ use crate::bones::core::host_api::{
 };
 use crate::display_preferences::DisplayPreferences;
 use crate::game_ui::{
-    build_layout, canvas, FULLSCREEN, LEVEL_BACK, LEVEL_ONE, MAIN_MENU, PAUSE_LEVELS, PAUSE_QUIT,
-    PAUSE_SETTINGS, QUIT, RESOLUTION_BASE, RESUME, SETTINGS_BACK, START, START_SETTINGS,
+    build_layout, canvas, FULLSCREEN, LEVEL_BACK, LEVEL_ONE, LEVEL_TWO, MAIN_MENU, PAUSE_LEVELS,
+    PAUSE_QUIT, PAUSE_SETTINGS, QUIT, RESOLUTION_BASE, RESUME, SETTINGS_BACK, START,
+    START_SETTINGS,
 };
 use crate::level::Level;
 use crate::menu_state::MenuState;
@@ -274,6 +275,12 @@ fn activate_button(id: u32) {
                 state.menu.select_level(Level::One);
                 reset_selection(&mut state);
                 replace_session(previous, Level::One);
+            }
+            LEVEL_TWO => {
+                let previous = state.menu.active_level();
+                state.menu.select_level(Level::Two);
+                reset_selection(&mut state);
+                replace_session(previous, Level::Two);
             }
             LEVEL_BACK => {
                 state.menu.cancel_level_selection();

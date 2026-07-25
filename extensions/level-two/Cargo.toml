@@ -1,0 +1,14 @@
+[package]
+name = "level-two"
+version = "0.1.0"
+edition = "2021"
+
+[package.metadata.artificial-will]
+dist-group = "levels"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+bones-messages = { path = "../../vendor/bones/shared/bones-messages" }
+wit-bindgen = "0.59.0"

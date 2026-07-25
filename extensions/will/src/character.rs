@@ -23,6 +23,7 @@ const ATTACK_SIDE_PNG: &[u8] =
     include_bytes!("../../../assets/RPGMCharacter_v1.0/_side attack.png");
 
 const WILL_ENTITY_ID: u32 = 1;
+const WILL_BODY_KIND: BodyKind = BodyKind::Frictionless;
 
 pub fn load_sprites() {
     let sprites: [(u32, &[u8]); 9] = [
@@ -52,7 +53,7 @@ pub fn spawn(state: &PlayerState) {
         shape: Shape::Rect,
         collider_half_w: 10.0,
         collider_half_h: 27.0,
-        body_kind: BodyKind::Kinematic,
+        body_kind: WILL_BODY_KIND,
         worlds: PhysicsWorlds::RETRO,
     });
     publish_presentation(state);
@@ -64,3 +65,6 @@ pub fn publish_presentation(state: &PlayerState) {
         presentation: state.presentation(),
     });
 }
+
+#[cfg(test)]
+mod tests;
