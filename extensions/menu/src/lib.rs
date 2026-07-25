@@ -31,8 +31,8 @@ impl Guest for Component {
         runtime::publish_ui();
     }
 
-    fn on_message(topic: String, _sender: String, payload: Vec<u8>) -> Option<Vec<u8>> {
-        runtime::handle_message(&topic, &payload);
+    fn on_message(topic: String, sender: String, payload: Vec<u8>) -> Option<Vec<u8>> {
+        runtime::handle_message(&topic, &sender, &payload);
         None
     }
 }

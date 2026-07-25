@@ -46,6 +46,16 @@ impl MenuState {
         }
     }
 
+    /// Restarts the active level after defeat and returns to live gameplay.
+    pub fn restart_active_level(&mut self) -> Option<SessionRequest> {
+        let level = self.active_level?;
+        self.screen = Screen::Gameplay;
+        Some(SessionRequest::Replace {
+            previous: Some(level),
+            next: level,
+        })
+    }
+
     /// Returns from level selection; `false` means the transition was unavailable.
     pub fn cancel_level_selection(&mut self) -> bool {
         if self.screen != Screen::LevelSelection {

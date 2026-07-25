@@ -7,7 +7,7 @@ use bones_messages::input::{KeyDown, MouseDown, MouseMove};
 use bones_messages::persistence::{Save, ENDPOINT as PERSISTENCE};
 use bones_messages::renderer::DisplayChanged;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
-use game_messages::{PauseChanged, SessionReset};
+use game_messages::{PauseChanged, PlayerDefeated, SessionReset};
 use game_ui::{DrawCommand, Rect, Selection};
 
 use crate::bones::core::host_api::{
@@ -139,6 +139,7 @@ pub fn init() {
     subscribe(MouseDown::TOPIC);
     subscribe(MouseMove::TOPIC);
     subscribe(DisplayChanged::TOPIC);
+    subscribe(PlayerDefeated::TOPIC);
     subscribe("core/tick");
 
     let resolutions = query_resolutions();
@@ -418,7 +419,14 @@ fn handle_pointer_down(button: u8, x: f32, y: f32) {
     }
 }
 
-pub fn handle_message(topic: &str, payload: &[u8]) {
+fn defeat_request(menu: &mut MenuState, sender: &str, payload: &[u8]) -> Option<SessionRequest> {
+    if sender != "will" || PlayerDefeated::decode(payload).is_err() {
+        return None;
+    }
+    menu.restart_active_level()
+}
+
+pub fn handle_message(topic: &str, sender: &str, payload: &[u8]) {
     match topic {
         KeyDown::TOPIC => {
             if let Ok(key) = KeyDown::decode(payload) {
@@ -439,6 +447,13 @@ pub fn handle_message(topic: &str, payload: &[u8]) {
             if let Ok(display) = DisplayChanged::decode(payload) {
                 STATE
                     .with(|state| state.borrow_mut().window_size = (display.width, display.height));
+            }
+        }
+        PlayerDefeated::TOPIC => {
+            let request =
+                STATE.with(|state| defeat_request(&mut state.borrow_mut().menu, sender, payload));
+            if let Some(request) = request {
+                apply_session_request(request);
             }
         }
         _ => {}
@@ -470,5 +485,21 @@ mod tests {
             assert!(!title_for(screen).0.is_empty());
         }
         assert_eq!(title_for(Screen::Gameplay), ("", ""));
+    }
+
+    #[test]
+    fn only_a_valid_defeat_from_will_restarts_the_active_level() {
+        let mut menu = MenuState::default();
+        menu.select_level(Level::One);
+
+        assert_eq!(defeat_request(&mut menu, "rogue", &[]), None);
+        assert_eq!(defeat_request(&mut menu, "will", &[0]), None);
+        assert_eq!(
+            defeat_request(&mut menu, "will", &PlayerDefeated.encode()),
+            Some(SessionRequest::Replace {
+                previous: Some(Level::One),
+                next: Level::One,
+            })
+        );
     }
 }
