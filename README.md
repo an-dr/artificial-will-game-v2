@@ -74,10 +74,10 @@ Will keeps moving during an attack, but facing remains fixed until its two
 frames finish. Walk and idle animations select down, up, or side sheets; the
 right-facing side sheet is mirrored.
 
-Level One preserves the original grass map and pushable boxes. Level Two is a
-denser stone field with fixed rock obstacles and six animated idle slimes. The
-slimes currently block movement but do not move, pursue Will, attack, or deal
-damage.
+Level One preserves the original grass map and pushable boxes. Level Two is an
+overgrown ruin with mixed grass and broken-stone ground, illustrated fixed rock
+obstacles, and six animated idle slimes. The slimes currently block movement
+but do not move, pursue Will, attack, or deal damage.
 
 ## Testing a self-contained build
 

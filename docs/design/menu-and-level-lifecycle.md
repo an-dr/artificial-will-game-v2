@@ -12,7 +12,7 @@ to keep navigation in WASM while loading only the selected gameplay content.
 | bones extension manager | Recursive catalog, startup allow-list, load/unload/reload, and lifecycle results |
 | `will.wasm` | Character resources, entity, input, and cleanup |
 | `level_one.wasm` | Level resources, entities, camera, and cleanup |
-| `level_two.wasm` | Stone terrain, fixed rocks, passive slimes, camera, and cleanup |
+| `level_two.wasm` | Mixed grass/stone ruins, illustrated rocks, passive slimes, camera, and cleanup |
 | native `game-core` | Simulation, rendering, pause, and world reset |
 
 The menu is the only startup extension. Gameplay extensions are cataloged but

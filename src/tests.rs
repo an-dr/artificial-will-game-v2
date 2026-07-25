@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use bones_messages::gfx::{DrawRect, DrawText};
+use bones_messages::gfx::{DrawRect, DrawSprite, DrawText};
 use bones_messages::input::KeyDown;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use bus::Envelope;
@@ -31,8 +31,8 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
         .build()
         .unwrap();
 
-    let graphics = Arc::new(Mutex::new(Vec::new()));
-    let graphics_sink = Arc::clone(&graphics);
+    let captured_graphics = Arc::new(Mutex::new(Vec::new()));
+    let graphics_sink = Arc::clone(&captured_graphics);
     let graphics_spy = built
         .runner
         .bus()
@@ -42,7 +42,7 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
     graphics_spy.subscribe("gfx/*");
     built.runner.step(1.0 / 60.0);
     built.runner.step(1.0 / 60.0);
-    let graphics = graphics.lock().unwrap();
+    let graphics = captured_graphics.lock().unwrap();
     assert!(graphics.iter().any(|event| {
         event.topic == DrawRect::TOPIC
             && DrawRect::decode(&event.payload).is_ok_and(|rectangle| rectangle.screen_space)
@@ -106,8 +106,10 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
     press(&mut built, "Return");
     press(&mut built, "Down");
     press(&mut built, "Return");
-    built.runner.step(1.0 / 60.0);
-    built.supervisor.check();
+    for _ in 0..4 {
+        built.runner.step(1.0 / 60.0);
+        built.supervisor.check();
+    }
 
     assert!(built.supervisor.registry.call("test", "will", &[]).is_ok());
     assert!(built
@@ -120,6 +122,18 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
         .registry
         .call("test", "level_two", &[])
         .is_ok());
+    let graphics = captured_graphics.lock().unwrap();
+    let drawn_sprite_ids = graphics
+        .iter()
+        .filter(|event| event.topic == DrawSprite::TOPIC)
+        .filter_map(|event| DrawSprite::decode(&event.payload).ok())
+        .map(|sprite| sprite.id)
+        .collect::<Vec<_>>();
+    assert!(drawn_sprite_ids.contains(&20));
+    assert!(drawn_sprite_ids.contains(&21));
+    assert!(drawn_sprite_ids.contains(&22));
+    assert!(drawn_sprite_ids.iter().any(|id| (30..=32).contains(id)));
+    drop(graphics);
 
     press(&mut built, "Escape");
     press(&mut built, "Down");

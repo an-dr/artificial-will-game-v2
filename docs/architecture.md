@@ -41,8 +41,9 @@ wire compatibility and behavior are documented in the engine's ADR-023.
 
 Each level component owns its TMX, tileset, entities, and camera setup through
 game-core operations. Level One preserves the original grass field and
-pushable boxes. Level Two supplies a denser stone map, fixed rocks, and passive
-idle-animated slime colliders. The slimes deliberately have no movement,
+pushable boxes. Level Two supplies mixed grass and broken-stone ruins,
+illustrated fixed rock obstacles, and passive idle-animated slime colliders.
+The slimes deliberately have no movement,
 pursuit, attack, damage, or combat behavior. The `will` component owns
 character assets and spawning, held controls, and the idle/walk/attack state
 machine. Its bindings are isolated from the pure state modules, and it uses
