@@ -18,5 +18,6 @@ Adding an extension: create a new crate here (`cdylib`, depends on
 `package.metadata.artificial-will.dist-group` to `core` or `levels`, and add
 it to this file's `[workspace] members`. [menu](menu) owns navigation and
 session control, [level-one](level-one) owns the first level's game-core
-setup, [level-two](level-two) owns the stone field and its passive slimes, and
-[will](will) owns the character.
+setup plus destructible coin boxes, [level-two](level-two) owns the stone field
+and its pursuing, damaging, two-hit slimes, and [will](will) owns the character,
+session progression, combat requests, HUD, and confirmed-hit feedback.

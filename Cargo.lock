@@ -811,6 +811,7 @@ dependencies = [
  "bones-messages",
  "bus",
  "game-core",
+ "game-messages",
  "runner",
 ]
 
@@ -824,6 +825,13 @@ dependencies = [
  "hecs",
  "rapier2d",
  "tiled",
+]
+
+[[package]]
+name = "game-messages"
+version = "0.1.0"
+dependencies = [
+ "bones-messages",
 ]
 
 [[package]]

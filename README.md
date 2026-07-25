@@ -69,16 +69,23 @@ dedicated extension root is checked first.
   activates the selected item.
 - Press Escape during play to pause; press it again to resume.
 - Move with WASD or the arrow keys at 160 pixels per second on each axis.
-- Press Space to play the facing-dependent attack animation once.
+- Press Space for one facing-dependent melee swing. A swing affects only the
+  nearest box or slime in its forward lane.
 
 Will keeps moving during an attack, but facing remains fixed until its two
-frames finish. Walk and idle animations select down, up, or side sheets; the
+frames finish. Will starts each session with three lives and a short damage
+invulnerability window. The game HUD shows lives, level, total XP, current
+level progress, and coins; progression resets when the level session restarts
+or changes. Walk and idle animations select down, up, or side sheets; the
 right-facing side sheet is mirrored.
 
-Level One preserves the original grass map and pushable boxes. Level Two is an
-overgrown ruin with mixed grass and broken-stone ground, illustrated fixed rock
-obstacles, and six animated idle slimes. The slimes currently block movement
-but do not move, pursue Will, attack, or deal damage.
+Level One preserves the original grass map and pushable boxes. Each box breaks
+in one hit and contains a deterministic coin reward. Level Two is an overgrown
+ruin with mixed grass and broken-stone ground, illustrated fixed rock
+obstacles, and six animated slimes. Nearby slimes pursue Will, deal contact
+damage, take two hits, and award one XP on defeat. Every three XP increases
+Will's displayed level. Losing the last life transactionally restarts the
+current level.
 
 ## Testing a self-contained build
 

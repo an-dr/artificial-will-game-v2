@@ -18,7 +18,13 @@ flowchart LR
     Manager --> Level["selected level.wasm<br/>TMX + entities + camera setup"]
     Manager --> Will
     Level["selected level.wasm<br/>TMX + entities + camera setup"] -->|"typed game-core operations"| GameCore
-    Will["will.wasm<br/>character + controls + state"] -->|"typed game-core operations"| GameCore
+    GameCore -->|"authoritative transforms + contacts"| Level
+    GameCore -->|"authoritative Will transform"| Will
+    Will["will.wasm<br/>character + combat + progression + HUD"] -->|"typed game-core operations"| GameCore
+    Will -->|"attack request"| Level
+    Level -->|"damage + hit + reward"| Will
+    Will -->|"defeat"| Menu
+    Will -->|"screen-space HUD + world-space impact"| Renderer
     GameCore["bones game-core<br/>ECS + retro physics + tilemap + camera"] -->|"gfx batches"| Renderer
     Renderer["bones renderer"] --> Window["SDL3 window"]
     Platform --> Renderer
@@ -40,17 +46,26 @@ follow. The port added the generally reusable `SetSprite`, camera-smoothing,
 and four/eight-direction `ObjectFacing` capabilities to bones; presentation
 wire compatibility and behavior are documented in the engine's ADR-023.
 
-Each level component owns its TMX, tileset, entities, and camera setup through
-game-core operations. Level One preserves the original grass field and
-pushable boxes. Level Two supplies mixed grass and broken-stone ruins,
-illustrated fixed rock obstacles, and passive idle-animated slime colliders.
-The slimes deliberately have no movement,
-pursuit, attack, damage, or combat behavior. The `will` component owns
-character assets and spawning, held controls, and the idle/walk/attack state
-machine. Its bindings are isolated from the pure state modules, and it uses
-bones `ObjectFacing` in cardinal mode to preserve v1 behavior. Switching
-animation changes presentation in place and never replaces Will's transform
-or collider.
+Each level component owns its TMX, tileset, entities, camera setup, and target
+health through game-core operations. Level One preserves the original grass
+field and pushable boxes; boxes track their authoritative moved positions,
+break in one hit, and award deterministic coins. Level Two supplies mixed
+grass and broken-stone ruins, illustrated fixed rock obstacles, and
+idle-animated slime colliders. Slimes pursue Will only inside a bounded
+awareness radius, deal damage on contact starts, take two hits, and award XP
+only on death. Dead entities leave targeting, motion, and contact behavior
+before their idempotent game-core despawn is published.
+
+The `will` component owns character assets and spawning, held controls, the
+idle/walk/attack state machine, three session lives, damage invulnerability,
+coins, XP, derived level, and defeat signaling. It builds each melee request
+from game-core's latest authoritative Will transform; the active level selects
+at most one nearest target in the directional lane and confirms the result.
+Will renders a compact screen-space HUD through bones' theme-free `game-ui`
+primitives and a brief world-space marker after confirmation. Its bindings are
+isolated from pure state modules, and it uses bones `ObjectFacing` in cardinal
+mode to preserve v1 presentation behavior. Switching animation changes
+presentation in place and never replaces Will's transform or collider.
 
 The persistent `menu` component owns start, pause, settings, and level-selection
 screens. It renders them as screen-space rectangles and text through the game
@@ -60,6 +75,9 @@ mechanics come from bones `game-ui`; Artificial Will retains its colors,
 labels, and navigation state. It queries display modes from the native host,
 applies resolution and fullscreen changes through typed renderer messages,
 and stores a strict versioned preference record through bones persistence.
+It also consumes Will's authenticated defeat event and expresses restart as
+the same transactional level-replacement request used by manual switching:
+pause, unload, reset game-core, reload the same level and Will, then resume.
 
 ## Fidelity to v1
 
@@ -71,8 +89,11 @@ pixels per second on each axis without diagonal normalization.
 Will chooses facing from the dominant movement axis, mirrors the side sheet
 only when facing right, and uses the original five-frame 8 fps idle/walk
 animations. Space starts the original two-frame visual attack on a press edge;
-movement continues and facing freezes until it finishes. The original has no
-attack damage or audio behavior, so the port does not invent either.
+movement continues and facing freezes until it finishes. Combat, lives,
+session progression, destructible rewards, hostile slime pursuit, and the HUD
+are deliberate v2 gameplay additions layered on that original presentation;
+audio, equipment, shops, randomized loot, ranged attacks, and persistent
+cross-session progression remain out of scope.
 
 ## Assets and packaging
 

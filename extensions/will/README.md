@@ -11,7 +11,11 @@ overlap.
 Controls: move with WASD or the arrow keys. Movement preserves the original
 160-pixel-per-second speed on each axis, including unnormalized diagonals.
 Press Space to play Will's facing-dependent attack once; movement continues
-during the attack while its facing remains fixed.
+during the attack while its facing remains fixed. A swing targets one nearby
+object in its forward lane. Will owns three session lives, brief damage
+invulnerability, coins, XP, and the derived level (one level per three XP).
+Its compact game-rendered HUD stays below menu overlays, and a world-space
+marker appears only when a level confirms a hit.
 
 Build from the parent extension workspace:
 

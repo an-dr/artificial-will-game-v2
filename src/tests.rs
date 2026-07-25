@@ -1,16 +1,23 @@
 use std::sync::{Arc, Mutex};
 
+use bones_messages::game_core::{EntityOp, EntityOpMessage};
 use bones_messages::gfx::{DrawRect, DrawSprite, DrawText};
 use bones_messages::input::KeyDown;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use bus::Envelope;
+use game_messages::{
+    AttackDirection, AttackRequested, HitConfirmed, PlayerDamaged, PlayerDefeated, PlayerStats,
+    RewardGranted,
+};
 
 struct SavesDir(std::path::PathBuf);
 
 impl SavesDir {
-    fn create() -> Self {
-        let path =
-            std::env::temp_dir().join(format!("artificial-will-menu-test-{}", std::process::id()));
+    fn create(label: &str) -> Self {
+        let path = std::env::temp_dir().join(format!(
+            "artificial-will-{label}-test-{}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&path);
         Self(path)
     }
@@ -31,6 +38,26 @@ fn press(built: &mut runner::BuiltEngine, key: &'static str) {
     });
     built.runner.step(1.0 / 60.0);
     built.supervisor.check();
+}
+
+fn publish_message<M: Message + EncodeMessage>(
+    built: &mut runner::BuiltEngine,
+    sender: &str,
+    message: M,
+) {
+    built.runner.bus().publish(Envelope {
+        topic: M::TOPIC.to_owned(),
+        sender: sender.to_owned(),
+        correlation: None,
+        payload: message.encode(),
+    });
+}
+
+fn pump(built: &mut runner::BuiltEngine, frames: usize) {
+    for _ in 0..frames {
+        built.runner.step(1.0 / 60.0);
+        built.supervisor.check();
+    }
 }
 
 fn assert_screen_title(
@@ -56,7 +83,7 @@ fn assert_screen_title(
 
 #[test]
 fn menu_controls_level_load_unload_and_switch_lifecycle() {
-    let saves = SavesDir::create();
+    let saves = SavesDir::create("menu");
     let extensions = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("extensions/target/wasm32-wasip2/release");
     let mut built = runner::Engine::new()
@@ -198,4 +225,189 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
         .registry
         .call("test", "level_two", &[])
         .is_err());
+}
+
+#[test]
+fn combat_rewards_hud_and_defeat_restart_flow_across_extensions() {
+    let saves = SavesDir::create("combat");
+    let extensions = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("extensions/target/wasm32-wasip2/release");
+    let mut built = runner::Engine::new()
+        .extensions_dir(extensions)
+        .startup_extension("menu")
+        .extension_controller("menu")
+        .saves_dir(saves.0.clone())
+        .module(game_core::GameCore::new())
+        .build()
+        .unwrap();
+
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let sink = Arc::clone(&captured);
+    let spy = built
+        .runner
+        .bus()
+        .register("combat-flow-test", move |event: &Envelope| {
+            sink.lock().unwrap().push(event.clone());
+        });
+    for topic in ["game/*", "game-core/*", "gfx/*"] {
+        spy.subscribe(topic);
+    }
+
+    pump(&mut built, 2);
+    press(&mut built, "Return");
+    press(&mut built, "Return");
+    pump(&mut built, 10);
+    assert!(captured.lock().unwrap().iter().any(|event| {
+        event.sender == "menu"
+            && event.topic == DrawRect::TOPIC
+            && DrawRect::decode(&event.payload).is_ok_and(|rectangle| {
+                rectangle.screen_space
+                    && (rectangle.x, rectangle.y, rectangle.w, rectangle.h) == (0, 0, 1, 1)
+                    && rectangle.color.3 == 0
+            })
+    }));
+    captured.lock().unwrap().clear();
+
+    press(&mut built, "Space");
+    pump(&mut built, 2);
+    assert!(captured.lock().unwrap().iter().any(|event| {
+        event.sender == "will"
+            && event.topic == AttackRequested::TOPIC
+            && AttackRequested::decode(&event.payload).is_ok()
+    }));
+
+    publish_message(
+        &mut built,
+        "will",
+        AttackRequested {
+            sequence: 100,
+            origin_x: 180.0,
+            origin_y: 442.0,
+            direction: AttackDirection::Right,
+            reach: 80.0,
+            half_width: 24.0,
+        },
+    );
+    pump(&mut built, 10);
+    {
+        let events = captured.lock().unwrap();
+        assert!(events.iter().any(|event| {
+            event.sender == "level_one"
+                && event.topic == HitConfirmed::TOPIC
+                && HitConfirmed::decode(&event.payload)
+                    .is_ok_and(|hit| hit.entity_id == 2 && hit.sequence == 100)
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "level_one"
+                && event.topic == RewardGranted::TOPIC
+                && RewardGranted::decode(&event.payload)
+                    .is_ok_and(|reward| reward.experience == 0 && reward.coins == 1)
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "level_one"
+                && event.topic == EntityOpMessage::TOPIC
+                && EntityOpMessage::decode(&event.payload)
+                    .is_ok_and(|message| matches!(message.0, EntityOp::Despawn { entity_id: 2 }))
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "will"
+                && event.topic == PlayerStats::TOPIC
+                && PlayerStats::decode(&event.payload).is_ok_and(|stats| stats.coins == 3)
+        }));
+        assert!(events.iter().any(|event| {
+            event.topic == DrawText::TOPIC
+                && DrawText::decode(&event.payload)
+                    .is_ok_and(|text| text.screen_space && text.text == "COINS 3")
+        }));
+    }
+
+    press(&mut built, "Escape");
+    press(&mut built, "Down");
+    press(&mut built, "Down");
+    press(&mut built, "Return");
+    press(&mut built, "Down");
+    press(&mut built, "Return");
+    pump(&mut built, 5);
+    assert!(built
+        .supervisor
+        .registry
+        .call("test", "level_two", &[])
+        .is_ok());
+    captured.lock().unwrap().clear();
+
+    for sequence in [200, 201] {
+        publish_message(
+            &mut built,
+            "will",
+            AttackRequested {
+                sequence,
+                origin_x: 420.0,
+                origin_y: 288.0,
+                direction: AttackDirection::Right,
+                reach: 80.0,
+                half_width: 24.0,
+            },
+        );
+        pump(&mut built, 6);
+    }
+    pump(&mut built, 6);
+    {
+        let events = captured.lock().unwrap();
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| {
+                    event.sender == "level_two"
+                        && event.topic == HitConfirmed::TOPIC
+                        && HitConfirmed::decode(&event.payload)
+                            .is_ok_and(|hit| hit.entity_id == 200)
+                })
+                .count(),
+            2
+        );
+        assert!(events.iter().any(|event| {
+            event.sender == "level_two"
+                && event.topic == RewardGranted::TOPIC
+                && RewardGranted::decode(&event.payload)
+                    .is_ok_and(|reward| reward.experience == 1 && reward.coins == 0)
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "will"
+                && event.topic == PlayerStats::TOPIC
+                && PlayerStats::decode(&event.payload)
+                    .is_ok_and(|stats| stats.experience == 1 && stats.level == 1)
+        }));
+    }
+
+    publish_message(&mut built, "level_two", PlayerDamaged { amount: 3 });
+    pump(&mut built, 20);
+    {
+        let events = captured.lock().unwrap();
+        assert!(events.iter().any(|event| {
+            event.sender == "will"
+                && event.topic == PlayerDefeated::TOPIC
+                && PlayerDefeated::decode(&event.payload).is_ok()
+        }));
+        let stats = events
+            .iter()
+            .filter(|event| event.sender == "will" && event.topic == PlayerStats::TOPIC)
+            .filter_map(|event| PlayerStats::decode(&event.payload).ok())
+            .collect::<Vec<_>>();
+        assert!(stats.iter().any(|stats| stats.lives == 0));
+        assert_eq!(
+            stats.last(),
+            Some(&PlayerStats {
+                lives: 3,
+                experience: 0,
+                level: 1,
+                coins: 0,
+            })
+        );
+    }
+    assert!(built.supervisor.registry.call("test", "will", &[]).is_ok());
+    assert!(built
+        .supervisor
+        .registry
+        .call("test", "level_two", &[])
+        .is_ok());
 }

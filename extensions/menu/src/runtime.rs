@@ -212,6 +212,10 @@ fn draw_text(text: &str, x: i32, y: i32, size: u16, color: (u8, u8, u8, u8)) {
 pub fn publish_ui() {
     let (screen, preferences, resolutions, selection) = read_ui_state();
     if screen == Screen::Gameplay {
+        // The renderer retains each sender's last completed draw batch.
+        // Replace the prior menu with one invisible command so gameplay
+        // cannot inherit the level-selection or pause overlay.
+        draw_rect(0, 0, 1, 1, true, (0, 0, 0, 0));
         return;
     }
     let layout = build_layout(screen, preferences, &resolutions);
