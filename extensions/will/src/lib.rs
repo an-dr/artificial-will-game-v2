@@ -8,6 +8,8 @@ wit_bindgen::generate!({
 mod character;
 mod combat_state;
 mod held_keys;
+mod hud;
+mod impact;
 mod player_mode;
 mod player_state;
 
@@ -19,15 +21,18 @@ use bones_messages::input::{KeyDown, KeyUp};
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use combat_state::{CombatState, DamageOutcome};
 use game_messages::{
-    PauseChanged, PlayerDamaged, PlayerDefeated, RewardGranted, SessionReset, WILL_ENTITY_ID,
+    HitConfirmed, PauseChanged, PlayerDamaged, PlayerDefeated, RewardGranted, SessionReset,
+    WILL_ENTITY_ID,
 };
 use held_keys::HeldKeys;
+use impact::ImpactFeedback;
 use player_state::PlayerState;
 
 thread_local! {
     static HELD_KEYS: RefCell<HeldKeys> = RefCell::new(HeldKeys::default());
     static PLAYER_STATE: RefCell<PlayerState> = RefCell::new(PlayerState::default());
     static COMBAT_STATE: RefCell<CombatState> = RefCell::new(CombatState::default());
+    static IMPACT_FEEDBACK: RefCell<ImpactFeedback> = RefCell::new(ImpactFeedback::default());
     static PAUSED: Cell<bool> = const { Cell::new(false) };
 }
 
@@ -51,10 +56,25 @@ fn publish_player_stats() {
     COMBAT_STATE.with(|state| publish_message(state.borrow().stats()));
 }
 
+fn publish_game_ui() {
+    let stats = COMBAT_STATE.with(|state| state.borrow().stats());
+    for command in hud::commands(stats) {
+        command.publish_with(publish);
+    }
+    IMPACT_FEEDBACK.with(|feedback| {
+        if let Some(rectangles) = feedback.borrow().rectangles() {
+            for rectangle in rectangles {
+                publish_message(rectangle);
+            }
+        }
+    });
+}
+
 fn reset_state() {
     HELD_KEYS.with(|held| *held.borrow_mut() = HeldKeys::default());
     PLAYER_STATE.with(|state| *state.borrow_mut() = PlayerState::default());
     COMBAT_STATE.with(|state| *state.borrow_mut() = CombatState::default());
+    IMPACT_FEEDBACK.with(|feedback| *feedback.borrow_mut() = ImpactFeedback::default());
     PAUSED.with(|paused| paused.set(false));
 }
 
@@ -112,6 +132,7 @@ impl Guest for Component {
         subscribe(EntityTransform::TOPIC);
         subscribe(PlayerDamaged::TOPIC);
         subscribe(RewardGranted::TOPIC);
+        subscribe(HitConfirmed::TOPIC);
         subscribe("core/tick");
 
         character::load_sprites();
@@ -126,6 +147,7 @@ impl Guest for Component {
 
     fn on_tick(dt: f32) {
         if PAUSED.with(Cell::get) {
+            publish_game_ui();
             return;
         }
         let (vx, vy) = HELD_KEYS.with(|held| held.borrow().velocity());
@@ -139,6 +161,8 @@ impl Guest for Component {
             publish_player_presentation();
         }
         COMBAT_STATE.with(|state| state.borrow_mut().tick(dt));
+        IMPACT_FEEDBACK.with(|feedback| feedback.borrow_mut().tick(dt));
+        publish_game_ui();
     }
 
     fn on_message(topic: String, sender: String, payload: Vec<u8>) -> Option<Vec<u8>> {
@@ -190,6 +214,11 @@ impl Guest for Component {
                 if let Ok(message) = RewardGranted::decode(&payload) {
                     COMBAT_STATE.with(|state| state.borrow_mut().grant(message));
                     publish_player_stats();
+                }
+            }
+            HitConfirmed::TOPIC if is_active_level(&sender) => {
+                if let Ok(message) = HitConfirmed::decode(&payload) {
+                    IMPACT_FEEDBACK.with(|feedback| feedback.borrow_mut().confirm(message));
                 }
             }
             _ => {}

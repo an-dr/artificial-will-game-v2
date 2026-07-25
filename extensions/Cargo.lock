@@ -283,6 +283,7 @@ version = "0.1.0"
 dependencies = [
  "bones-messages",
  "game-messages",
+ "game-ui",
  "wit-bindgen",
 ]
 
