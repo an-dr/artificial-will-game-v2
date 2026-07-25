@@ -59,8 +59,8 @@ cargo run --release
 This builds `game` (embedding bones directly) *and*, via `build.rs`, every
 extension in `extensions/` — one command. `src/paths.rs` finds them at
 `extensions/target/wasm32-wasip2/release` relative to the exe (the dev-tree
-layout); a shipped `dist/` build has `extensions/` sitting right next to
-the binary instead, and that's checked first.
+layout); a shipped `dist/` build has grouped `core/` and `levels/`
+directories next to the binary instead, and that layout is checked first.
 
 ## Controls
 
@@ -76,7 +76,7 @@ right-facing side sheet is mirrored.
 `cargo run` is enough for day-to-day iteration — it never needs `dist/`.
 Use `cargo xtask dist` when you actually need a standalone folder: handing
 a build to someone else, or verifying the shipped-layout path resolution
-itself (`extensions/` next to the exe, not the dev-tree fallback) actually
+itself (`core/` and `levels/` next to the exe, not the dev-tree fallback) actually
 works, rather than trusting the dev-tree fallback path:
 
 ```sh
@@ -84,7 +84,7 @@ cargo xtask dist
 ```
 
 A real Rust program (`xtask/`, not a script) that builds `game` and every
-current extension target, then assembles `dist/artificial-will(.exe)` +
-`dist/extensions/*.wasm` in one command — copy `dist/` anywhere and run it
-as-is. This replaces manually rebuilding bones as an app and copying
+current extension target, then assembles `dist/artificial-will(.exe)`,
+`dist/core/*.wasm`, and `dist/levels/*.wasm` in one command — copy `dist/`
+anywhere and run it as-is. This replaces manually rebuilding bones as an app and copying
 `.wasm` files into some folder by hand every time you want to test that.

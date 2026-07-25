@@ -3,6 +3,9 @@ name = "will"
 version = "0.1.0"
 edition = "2021"
 
+[package.metadata.artificial-will]
+dist-group = "core"
+
 [lib]
 crate-type = ["cdylib"]
 
