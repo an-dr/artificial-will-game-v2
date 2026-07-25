@@ -63,3 +63,13 @@ fn an_attack_press_during_attack_is_not_buffered() {
     assert!(state.tick(0.25, 0.0, 0.0));
     assert_eq!(state.presentation().sprite.sprite_id, IDLE_DOWN_SPRITE_ID);
 }
+
+#[test]
+fn attack_direction_uses_the_frozen_cardinal_facing() {
+    let mut state = PlayerState::default();
+    state.tick(0.016, -160.0, 0.0);
+    assert_eq!(state.attack_direction(), AttackDirection::Left);
+    state.press_attack();
+    state.tick(0.1, 160.0, 0.0);
+    assert_eq!(state.attack_direction(), AttackDirection::Left);
+}

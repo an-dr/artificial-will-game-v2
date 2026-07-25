@@ -6,6 +6,7 @@ wit_bindgen::generate!({
 });
 
 mod character;
+mod combat_state;
 mod held_keys;
 mod player_mode;
 mod player_state;
@@ -13,21 +14,29 @@ mod player_state;
 use std::cell::{Cell, RefCell};
 
 use bones::core::host_api::{log, publish, subscribe, Level};
-use bones_messages::game_core::{EntityOp, EntityOpMessage};
+use bones_messages::game_core::{EntityOp, EntityOpMessage, EntityTransform};
 use bones_messages::input::{KeyDown, KeyUp};
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
-use game_messages::{PauseChanged, SessionReset, WILL_ENTITY_ID};
+use combat_state::{CombatState, DamageOutcome};
+use game_messages::{
+    PauseChanged, PlayerDamaged, PlayerDefeated, RewardGranted, SessionReset, WILL_ENTITY_ID,
+};
 use held_keys::HeldKeys;
 use player_state::PlayerState;
 
 thread_local! {
     static HELD_KEYS: RefCell<HeldKeys> = RefCell::new(HeldKeys::default());
     static PLAYER_STATE: RefCell<PlayerState> = RefCell::new(PlayerState::default());
+    static COMBAT_STATE: RefCell<CombatState> = RefCell::new(CombatState::default());
     static PAUSED: Cell<bool> = const { Cell::new(false) };
 }
 
 fn publish_entity_op(op: EntityOp) {
     publish(EntityOpMessage::TOPIC, &EntityOpMessage(op).encode());
+}
+
+fn publish_message<M: Message + EncodeMessage>(message: M) {
+    publish(M::TOPIC, &message.encode());
 }
 
 fn set_key_held(key: &str, is_down: bool) {
@@ -38,9 +47,14 @@ fn publish_player_presentation() {
     PLAYER_STATE.with(|state| character::publish_presentation(&state.borrow()));
 }
 
+fn publish_player_stats() {
+    COMBAT_STATE.with(|state| publish_message(state.borrow().stats()));
+}
+
 fn reset_state() {
     HELD_KEYS.with(|held| *held.borrow_mut() = HeldKeys::default());
     PLAYER_STATE.with(|state| *state.borrow_mut() = PlayerState::default());
+    COMBAT_STATE.with(|state| *state.borrow_mut() = CombatState::default());
     PAUSED.with(|paused| paused.set(false));
 }
 
@@ -53,9 +67,14 @@ fn set_paused(paused: bool) {
 
 fn handle_key_down(key: &str) {
     if key == "Space" {
-        let changed = PLAYER_STATE.with(|state| state.borrow_mut().press_attack());
-        if changed {
+        let direction = PLAYER_STATE.with(|state| {
+            let mut state = state.borrow_mut();
+            state.press_attack().then(|| state.attack_direction())
+        });
+        if let Some(direction) = direction {
             publish_player_presentation();
+            let attack = COMBAT_STATE.with(|state| state.borrow_mut().attack(direction));
+            publish_message(attack);
         }
     } else {
         set_key_held(key, true);
@@ -68,6 +87,10 @@ fn handle_key_up(key: &str) {
     } else {
         set_key_held(key, false);
     }
+}
+
+fn is_active_level(sender: &str) -> bool {
+    matches!(sender, "level_one" | "level_two")
 }
 
 struct Component;
@@ -86,10 +109,14 @@ impl Guest for Component {
         subscribe(KeyUp::TOPIC);
         subscribe(PauseChanged::TOPIC);
         subscribe(SessionReset::TOPIC);
+        subscribe(EntityTransform::TOPIC);
+        subscribe(PlayerDamaged::TOPIC);
+        subscribe(RewardGranted::TOPIC);
         subscribe("core/tick");
 
         character::load_sprites();
         PLAYER_STATE.with(|state| character::spawn(&state.borrow()));
+        publish_player_stats();
 
         log(
             Level::Info,
@@ -111,9 +138,10 @@ impl Guest for Component {
         if presentation_changed {
             publish_player_presentation();
         }
+        COMBAT_STATE.with(|state| state.borrow_mut().tick(dt));
     }
 
-    fn on_message(topic: String, _sender: String, payload: Vec<u8>) -> Option<Vec<u8>> {
+    fn on_message(topic: String, sender: String, payload: Vec<u8>) -> Option<Vec<u8>> {
         match topic.as_str() {
             KeyDown::TOPIC => {
                 if !PAUSED.with(Cell::get) {
@@ -134,7 +162,36 @@ impl Guest for Component {
                     set_paused(message.paused);
                 }
             }
-            SessionReset::TOPIC if SessionReset::decode(&payload).is_ok() => reset_state(),
+            SessionReset::TOPIC if SessionReset::decode(&payload).is_ok() => {
+                reset_state();
+                publish_player_stats();
+            }
+            EntityTransform::TOPIC if sender == "game-core" => {
+                if let Ok(message) = EntityTransform::decode(&payload) {
+                    if message.entity_id == WILL_ENTITY_ID {
+                        COMBAT_STATE
+                            .with(|state| state.borrow_mut().update_position(message.x, message.y));
+                    }
+                }
+            }
+            PlayerDamaged::TOPIC if is_active_level(&sender) => {
+                if let Ok(message) = PlayerDamaged::decode(&payload) {
+                    let outcome =
+                        COMBAT_STATE.with(|state| state.borrow_mut().damage(message.amount));
+                    if outcome != DamageOutcome::Ignored {
+                        publish_player_stats();
+                    }
+                    if outcome == DamageOutcome::Defeated {
+                        publish_message(PlayerDefeated);
+                    }
+                }
+            }
+            RewardGranted::TOPIC if is_active_level(&sender) => {
+                if let Ok(message) = RewardGranted::decode(&payload) {
+                    COMBAT_STATE.with(|state| state.borrow_mut().grant(message));
+                    publish_player_stats();
+                }
+            }
             _ => {}
         }
         None

@@ -1,4 +1,5 @@
 use bones_messages::game_core::{ObjectFacing, Sprite, SpritePresentation};
+use game_messages::AttackDirection;
 
 use crate::player_mode::PlayerMode;
 
@@ -40,6 +41,17 @@ impl Default for PlayerState {
 }
 
 impl PlayerState {
+    pub fn attack_direction(&self) -> AttackDirection {
+        match self.facing {
+            ObjectFacing::Up | ObjectFacing::UpLeft | ObjectFacing::UpRight => AttackDirection::Up,
+            ObjectFacing::Down | ObjectFacing::DownLeft | ObjectFacing::DownRight => {
+                AttackDirection::Down
+            }
+            ObjectFacing::Left => AttackDirection::Left,
+            ObjectFacing::Right => AttackDirection::Right,
+        }
+    }
+
     pub fn press_attack(&mut self) -> bool {
         if self.attack_button_down {
             return false;
