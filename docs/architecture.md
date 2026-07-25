@@ -49,9 +49,11 @@ in place and never replaces Will's transform or collider.
 The persistent `menu` component owns start, pause, settings, and level-selection
 screens. It renders them as screen-space rectangles and text through the game
 renderer, performs mouse hit-testing in the same logical canvas, and consumes
-keyboard navigation directly. It queries display modes from the native host,
-applies resolution and fullscreen changes through typed renderer messages, and
-stores a strict versioned preference record through bones persistence.
+keyboard navigation directly. Shared theme-free layout and interaction
+mechanics come from bones `game-ui`; Artificial Will retains its colors,
+labels, and navigation state. It queries display modes from the native host,
+applies resolution and fullscreen changes through typed renderer messages,
+and stores a strict versioned preference record through bones persistence.
 
 ## Fidelity to v1
 

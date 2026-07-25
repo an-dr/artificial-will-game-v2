@@ -10,7 +10,9 @@ saved data falls back to 800×600 windowed mode.
 Menus are rendered by the game renderer as screen-space rectangles and text;
 they do not use the app UI module. Use the mouse or arrow/WASD keys to select
 items, Enter or Space to activate them, and Escape to open or resume the pause
-menu.
+menu. Layout, selection, gfx command generation, and scaled hit-testing come
+from bones' theme-free guest-side `game-ui` crate; this extension owns the
+Artificial Will theme, labels, and screen flow.
 
 Build from the parent extension workspace:
 

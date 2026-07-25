@@ -2,11 +2,12 @@ use std::cell::RefCell;
 
 use bones_messages::extension_control::{Load, Unload};
 use bones_messages::game_core::{EntityOp, EntityOpMessage};
-use bones_messages::gfx::{DrawRect, DrawText, SetDisplay};
+use bones_messages::gfx::SetDisplay;
 use bones_messages::input::{KeyDown, MouseDown, MouseMove};
 use bones_messages::persistence::{Save, ENDPOINT as PERSISTENCE};
 use bones_messages::renderer::DisplayChanged;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
+use game_ui::{DrawCommand, Rect, Selection};
 
 use crate::bones::core::host_api::{
     list_display_modes, log, native_display_mode, publish, request_exit, send, subscribe,
@@ -14,9 +15,8 @@ use crate::bones::core::host_api::{
 };
 use crate::display_preferences::DisplayPreferences;
 use crate::game_ui::{
-    build_buttons, find_button_at, move_selection, panel_height, FULLSCREEN, LEVEL_BACK, LEVEL_ONE,
-    MAIN_MENU, PAUSE_LEVELS, PAUSE_QUIT, PAUSE_SETTINGS, QUIT, RESOLUTION_BASE, RESUME,
-    SCREEN_HEIGHT, SCREEN_WIDTH, SETTINGS_BACK, START, START_SETTINGS,
+    build_layout, canvas, FULLSCREEN, LEVEL_BACK, LEVEL_ONE, MAIN_MENU, PAUSE_LEVELS, PAUSE_QUIT,
+    PAUSE_SETTINGS, QUIT, RESOLUTION_BASE, RESUME, SETTINGS_BACK, START, START_SETTINGS,
 };
 use crate::level::Level;
 use crate::menu_state::MenuState;
@@ -24,7 +24,6 @@ use crate::resolution_options::normalize_resolutions;
 use crate::screen::Screen;
 
 const MENU_LAYER: u8 = 250;
-const PANEL_WIDTH: u32 = 420;
 const PANEL_COLOR: (u8, u8, u8, u8) = (14, 18, 30, 255);
 const BORDER_COLOR: (u8, u8, u8, u8) = (85, 190, 220, 255);
 const TITLE_COLOR: (u8, u8, u8, u8) = (235, 248, 255, 255);
@@ -39,7 +38,7 @@ struct State {
     preferences: DisplayPreferences,
     resolutions: Vec<(u32, u32)>,
     window_size: (u32, u32),
-    selected: usize,
+    selection: Selection,
 }
 
 impl Default for State {
@@ -49,7 +48,7 @@ impl Default for State {
             preferences: DisplayPreferences::default(),
             resolutions: vec![(800, 600)],
             window_size: (800, 600),
-            selected: 0,
+            selection: Selection::default(),
         }
     }
 }
@@ -142,7 +141,7 @@ pub fn init() {
             preferences,
             resolutions,
             window_size: (800, 600),
-            selected: 0,
+            selection: Selection::default(),
         };
     });
     apply_display(preferences);
@@ -156,14 +155,14 @@ pub fn shutdown() {
     }
 }
 
-fn screen_copy() -> (Screen, DisplayPreferences, Vec<(u32, u32)>, usize) {
+fn screen_copy() -> (Screen, DisplayPreferences, Vec<(u32, u32)>, Selection) {
     STATE.with(|state| {
         let state = state.borrow();
         (
             state.menu.screen(),
             state.preferences,
             state.resolutions.clone(),
-            state.selected,
+            state.selection,
         )
     })
 }
@@ -179,71 +178,79 @@ fn title_for(screen: Screen) -> (&'static str, &'static str) {
 }
 
 fn draw_rect(x: i32, y: i32, width: u32, height: u32, filled: bool, color: (u8, u8, u8, u8)) {
-    publish_message(DrawRect {
-        x,
-        y,
-        w: width,
-        h: height,
+    DrawCommand::rectangle(
+        Rect {
+            x,
+            y,
+            width,
+            height,
+        },
         filled,
         color,
-        layer: MENU_LAYER,
-        screen_space: true,
-    });
+        MENU_LAYER,
+    )
+    .publish_with(|topic, payload| publish(topic, payload));
 }
 
 fn draw_text(text: &str, x: i32, y: i32, size: u16, color: (u8, u8, u8, u8)) {
-    publish_message(DrawText {
-        text,
-        x,
-        y,
-        size,
-        color,
-        layer: MENU_LAYER,
-        screen_space: true,
-    });
+    DrawCommand::text(text, x, y, size, color, MENU_LAYER)
+        .publish_with(|topic, payload| publish(topic, payload));
 }
 
 pub fn publish_ui() {
-    let (screen, preferences, resolutions, selected) = screen_copy();
-    let buttons = build_buttons(screen, preferences, &resolutions);
+    let (screen, preferences, resolutions, selection) = screen_copy();
+    let layout = build_layout(screen, preferences, &resolutions);
     if screen == Screen::Gameplay {
         draw_rect(-2, -2, 1, 1, true, (0, 0, 0, 0));
         return;
     }
 
-    let height = panel_height(buttons.len());
-    let x = (SCREEN_WIDTH - PANEL_WIDTH as i32) / 2;
-    let y = (SCREEN_HEIGHT - height as i32) / 2;
-    draw_rect(x, y, PANEL_WIDTH, height, true, PANEL_COLOR);
-    draw_rect(x, y, PANEL_WIDTH, height, false, BORDER_COLOR);
+    let panel = layout.panel;
+    draw_rect(
+        panel.x,
+        panel.y,
+        panel.width,
+        panel.height,
+        true,
+        PANEL_COLOR,
+    );
+    draw_rect(
+        panel.x,
+        panel.y,
+        panel.width,
+        panel.height,
+        false,
+        BORDER_COLOR,
+    );
 
     let (title, subtitle) = title_for(screen);
-    draw_text(title, x + 28, y + 22, 24, TITLE_COLOR);
-    draw_text(subtitle, x + 28, y + 58, 14, SUBTITLE_COLOR);
+    draw_text(title, panel.x + 28, panel.y + 22, 24, TITLE_COLOR);
+    draw_text(subtitle, panel.x + 28, panel.y + 58, 14, SUBTITLE_COLOR);
 
-    for (index, button) in buttons.iter().enumerate() {
+    for (index, button) in layout.buttons.iter().enumerate() {
+        let bounds = button.bounds;
         draw_rect(
-            button.x,
-            button.y,
-            button.width,
-            button.height,
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
             true,
-            if index == selected {
+            if index == selection.index() {
                 SELECTED_COLOR
             } else {
                 BUTTON_COLOR
             },
         );
-        if index == selected {
-            draw_text(">", button.x + 14, button.y + 12, 18, TITLE_COLOR);
+        if index == selection.index() {
+            draw_text(">", bounds.x + 14, bounds.y + 12, 18, TITLE_COLOR);
         }
-        let text_x = button.x + (button.width as i32 - button.label.chars().count() as i32 * 8) / 2;
-        draw_text(&button.label, text_x, button.y + 12, 16, TITLE_COLOR);
+        let text_x = bounds.x + (bounds.width as i32 - button.label.chars().count() as i32 * 8) / 2;
+        draw_text(&button.label, text_x, bounds.y + 12, 16, TITLE_COLOR);
     }
 }
 
 fn reset_selection(state: &mut State) {
-    state.selected = 0;
+    state.selection.reset();
 }
 
 fn activate_button(id: u32) {
@@ -345,17 +352,17 @@ fn handle_key(key: &str) {
     }
     let action = STATE.with(|state| {
         let mut state = state.borrow_mut();
-        let buttons = build_buttons(state.menu.screen(), state.preferences, &state.resolutions);
+        let layout = build_layout(state.menu.screen(), state.preferences, &state.resolutions);
         match key {
             "Up" | "W" | "Left" | "A" => {
-                state.selected = move_selection(state.selected, buttons.len(), -1);
+                state.selection.move_by(layout.buttons.len(), -1);
                 None
             }
             "Down" | "S" | "Right" | "D" => {
-                state.selected = move_selection(state.selected, buttons.len(), 1);
+                state.selection.move_by(layout.buttons.len(), 1);
                 None
             }
-            "Return" | "Enter" | "Space" => buttons.get(state.selected).map(|button| button.id),
+            "Return" | "Enter" | "Space" => state.selection.selected_id(&layout),
             _ => None,
         }
     });
@@ -364,27 +371,24 @@ fn handle_key(key: &str) {
     }
 }
 
-fn button_at_pointer(x: f32, y: f32) -> Option<(usize, u32)> {
+fn select_at_pointer(x: f32, y: f32) -> Option<u32> {
     STATE.with(|state| {
-        let state = state.borrow();
-        let buttons = build_buttons(state.menu.screen(), state.preferences, &state.resolutions);
-        let index = find_button_at(&buttons, x, y, state.window_size)?;
-        Some((index, buttons[index].id))
+        let mut state = state.borrow_mut();
+        let layout = build_layout(state.menu.screen(), state.preferences, &state.resolutions);
+        let window_size = state.window_size;
+        state.selection.hover(&layout, canvas(), x, y, window_size)
     })
 }
 
 fn handle_pointer_move(x: f32, y: f32) {
-    if let Some((index, _)) = button_at_pointer(x, y) {
-        STATE.with(|state| state.borrow_mut().selected = index);
-    }
+    select_at_pointer(x, y);
 }
 
 fn handle_pointer_down(button: u8, x: f32, y: f32) {
     if button != 1 {
         return;
     }
-    if let Some((index, id)) = button_at_pointer(x, y) {
-        STATE.with(|state| state.borrow_mut().selected = index);
+    if let Some(id) = select_at_pointer(x, y) {
         activate_button(id);
     }
 }
