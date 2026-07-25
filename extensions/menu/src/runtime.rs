@@ -7,6 +7,7 @@ use bones_messages::input::{KeyDown, MouseDown, MouseMove};
 use bones_messages::persistence::{Save, ENDPOINT as PERSISTENCE};
 use bones_messages::renderer::DisplayChanged;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
+use game_messages::{PauseChanged, SessionReset};
 use game_ui::{DrawCommand, Rect, Selection};
 
 use crate::bones::core::host_api::{
@@ -23,6 +24,7 @@ use crate::level::Level;
 use crate::menu_state::MenuState;
 use crate::resolution_options::normalize_resolutions;
 use crate::screen::Screen;
+use crate::session_request::SessionRequest;
 
 const MENU_LAYER: u8 = 250;
 const PANEL_COLOR: (u8, u8, u8, u8) = (14, 18, 30, 255);
@@ -63,10 +65,12 @@ fn publish_message<M: EncodeMessage>(message: M) {
 }
 
 fn set_paused(paused: bool) {
+    publish_message(PauseChanged { paused });
     publish_message(EntityOpMessage(EntityOp::SetPaused { paused }));
 }
 
 fn reset_game_core() {
+    publish_message(SessionReset);
     publish_message(EntityOpMessage(EntityOp::Reset));
 }
 
@@ -97,6 +101,13 @@ fn stop_session(level: Level) {
     unload("will");
     unload(level.extension_name());
     reset_game_core();
+}
+
+fn apply_session_request(request: SessionRequest) {
+    match request {
+        SessionRequest::Replace { previous, next } => replace_session(previous, next),
+        SessionRequest::Stop(level) => stop_session(level),
+    }
 }
 
 fn apply_display(preferences: DisplayPreferences) {
@@ -156,7 +167,7 @@ pub fn shutdown() {
     }
 }
 
-fn screen_copy() -> (Screen, DisplayPreferences, Vec<(u32, u32)>, Selection) {
+fn read_ui_state() -> (Screen, DisplayPreferences, Vec<(u32, u32)>, Selection) {
     STATE.with(|state| {
         let state = state.borrow();
         (
@@ -190,21 +201,19 @@ fn draw_rect(x: i32, y: i32, width: u32, height: u32, filled: bool, color: (u8, 
         color,
         MENU_LAYER,
     )
-    .publish_with(|topic, payload| publish(topic, payload));
+    .publish_with(publish);
 }
 
 fn draw_text(text: &str, x: i32, y: i32, size: u16, color: (u8, u8, u8, u8)) {
-    DrawCommand::text(text, x, y, size, color, MENU_LAYER)
-        .publish_with(|topic, payload| publish(topic, payload));
+    DrawCommand::text(text, x, y, size, color, MENU_LAYER).publish_with(publish);
 }
 
 pub fn publish_ui() {
-    let (screen, preferences, resolutions, selection) = screen_copy();
-    let layout = build_layout(screen, preferences, &resolutions);
+    let (screen, preferences, resolutions, selection) = read_ui_state();
     if screen == Screen::Gameplay {
-        draw_rect(-2, -2, 1, 1, true, (0, 0, 0, 0));
         return;
     }
+    let layout = build_layout(screen, preferences, &resolutions);
 
     let panel = layout.panel;
     draw_rect(
@@ -271,16 +280,14 @@ fn activate_button(id: u32) {
                 reset_selection(&mut state);
             }
             LEVEL_ONE => {
-                let previous = state.menu.active_level();
-                state.menu.select_level(Level::One);
+                let request = state.menu.select_level(Level::One);
                 reset_selection(&mut state);
-                replace_session(previous, Level::One);
+                apply_session_request(request);
             }
             LEVEL_TWO => {
-                let previous = state.menu.active_level();
-                state.menu.select_level(Level::Two);
+                let request = state.menu.select_level(Level::Two);
                 reset_selection(&mut state);
-                replace_session(previous, Level::Two);
+                apply_session_request(request);
             }
             LEVEL_BACK => {
                 state.menu.cancel_level_selection();
@@ -297,11 +304,10 @@ fn activate_button(id: u32) {
                 reset_selection(&mut state);
             }
             MAIN_MENU => {
-                let active = state.menu.active_level();
-                state.menu.return_to_start();
+                let request = state.menu.return_to_start();
                 reset_selection(&mut state);
-                if let Some(level) = active {
-                    stop_session(level);
+                if let Some(request) = request {
+                    apply_session_request(request);
                 }
             }
             FULLSCREEN => {
@@ -331,13 +337,17 @@ fn handle_escape() {
     STATE.with(|state| {
         let mut state = state.borrow_mut();
         match state.menu.screen() {
-            Screen::Gameplay if state.menu.pause() => {
-                reset_selection(&mut state);
-                set_paused(true);
+            Screen::Gameplay => {
+                if state.menu.pause() {
+                    reset_selection(&mut state);
+                    set_paused(true);
+                }
             }
-            Screen::Pause if state.menu.resume() => {
-                reset_selection(&mut state);
-                set_paused(false);
+            Screen::Pause => {
+                if state.menu.resume() {
+                    reset_selection(&mut state);
+                    set_paused(false);
+                }
             }
             Screen::Settings => {
                 state.menu.close_settings();
@@ -352,6 +362,18 @@ fn handle_escape() {
     });
 }
 
+fn navigation_delta(key: &str) -> Option<i32> {
+    match key {
+        "Up" | "W" | "Left" | "A" => Some(-1),
+        "Down" | "S" | "Right" | "D" => Some(1),
+        _ => None,
+    }
+}
+
+fn is_activation_key(key: &str) -> bool {
+    matches!(key, "Return" | "Enter" | "Space")
+}
+
 fn handle_key(key: &str) {
     if key == "Escape" {
         handle_escape();
@@ -360,17 +382,13 @@ fn handle_key(key: &str) {
     let action = STATE.with(|state| {
         let mut state = state.borrow_mut();
         let layout = build_layout(state.menu.screen(), state.preferences, &state.resolutions);
-        match key {
-            "Up" | "W" | "Left" | "A" => {
-                state.selection.move_by(layout.buttons.len(), -1);
-                None
-            }
-            "Down" | "S" | "Right" | "D" => {
-                state.selection.move_by(layout.buttons.len(), 1);
-                None
-            }
-            "Return" | "Enter" | "Space" => state.selection.selected_id(&layout),
-            _ => None,
+        if let Some(delta) = navigation_delta(key) {
+            state.selection.move_by(layout.buttons.len(), delta);
+            None
+        } else if is_activation_key(key) {
+            state.selection.selected_id(&layout)
+        } else {
+            None
         }
     });
     if let Some(id) = action {
@@ -424,5 +442,33 @@ pub fn handle_message(topic: &str, payload: &[u8]) {
             }
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keyboard_classification_covers_menu_navigation_and_activation() {
+        assert_eq!(navigation_delta("W"), Some(-1));
+        assert_eq!(navigation_delta("Down"), Some(1));
+        assert_eq!(navigation_delta("Escape"), None);
+        assert!(is_activation_key("Return"));
+        assert!(is_activation_key("Space"));
+        assert!(!is_activation_key("Escape"));
+    }
+
+    #[test]
+    fn every_visible_screen_has_a_title() {
+        for screen in [
+            Screen::Start,
+            Screen::LevelSelection,
+            Screen::Pause,
+            Screen::Settings,
+        ] {
+            assert!(!title_for(screen).0.is_empty());
+        }
+        assert_eq!(title_for(Screen::Gameplay), ("", ""));
     }
 }

@@ -5,6 +5,23 @@ use bones_messages::input::KeyDown;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use bus::Envelope;
 
+struct SavesDir(std::path::PathBuf);
+
+impl SavesDir {
+    fn create() -> Self {
+        let path =
+            std::env::temp_dir().join(format!("artificial-will-menu-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&path);
+        Self(path)
+    }
+}
+
+impl Drop for SavesDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 fn press(built: &mut runner::BuiltEngine, key: &'static str) {
     built.runner.bus().publish(Envelope {
         topic: KeyDown::TOPIC.to_owned(),
@@ -16,17 +33,37 @@ fn press(built: &mut runner::BuiltEngine, key: &'static str) {
     built.supervisor.check();
 }
 
+fn assert_screen_title(
+    built: &mut runner::BuiltEngine,
+    captured_graphics: &Arc<Mutex<Vec<Envelope>>>,
+    expected: &str,
+) {
+    captured_graphics.lock().unwrap().clear();
+    built.runner.step(1.0 / 60.0);
+    built.supervisor.check();
+    built.runner.step(1.0 / 60.0);
+    built.supervisor.check();
+    let graphics = captured_graphics.lock().unwrap();
+    assert!(
+        graphics.iter().any(|event| {
+            event.topic == DrawText::TOPIC
+                && DrawText::decode(&event.payload)
+                    .is_ok_and(|text| text.screen_space && text.text == expected)
+        }),
+        "expected menu title {expected:?}"
+    );
+}
+
 #[test]
 fn menu_controls_level_load_unload_and_switch_lifecycle() {
-    let saves =
-        std::env::temp_dir().join(format!("artificial-will-menu-test-{}", std::process::id()));
+    let saves = SavesDir::create();
     let extensions = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("extensions/target/wasm32-wasip2/release");
     let mut built = runner::Engine::new()
         .extensions_dir(extensions)
         .startup_extension("menu")
         .extension_controller("menu")
-        .saves_dir(saves)
+        .saves_dir(saves.0.clone())
         .module(game_core::GameCore::new())
         .build()
         .unwrap();
@@ -52,6 +89,7 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
             && DrawText::decode(&event.payload).is_ok_and(|text| text.screen_space)
     }));
     drop(graphics);
+    assert_screen_title(&mut built, &captured_graphics, "ARTIFICIAL WILL");
 
     assert!(built.supervisor.registry.call("test", "menu", &[]).is_ok());
     assert!(built.supervisor.registry.call("test", "will", &[]).is_err());
@@ -67,6 +105,7 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
         .is_err());
 
     press(&mut built, "Return");
+    assert_screen_title(&mut built, &captured_graphics, "SELECT LEVEL");
     press(&mut built, "Return");
     built.runner.step(1.0 / 60.0);
     built.supervisor.check();
@@ -84,10 +123,12 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
         .is_err());
 
     press(&mut built, "Escape");
+    assert_screen_title(&mut built, &captured_graphics, "SYSTEM PAUSED");
     press(&mut built, "Down");
     press(&mut built, "Down");
     press(&mut built, "Down");
     press(&mut built, "Return");
+    assert_screen_title(&mut built, &captured_graphics, "ARTIFICIAL WILL");
     built.runner.step(1.0 / 60.0);
     built.supervisor.check();
 
@@ -104,6 +145,7 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
         .is_err());
 
     press(&mut built, "Return");
+    assert_screen_title(&mut built, &captured_graphics, "SELECT LEVEL");
     press(&mut built, "Down");
     press(&mut built, "Return");
     for _ in 0..4 {
@@ -136,9 +178,11 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
     drop(graphics);
 
     press(&mut built, "Escape");
+    assert_screen_title(&mut built, &captured_graphics, "SYSTEM PAUSED");
     press(&mut built, "Down");
     press(&mut built, "Down");
     press(&mut built, "Return");
+    assert_screen_title(&mut built, &captured_graphics, "SELECT LEVEL");
     press(&mut built, "Return");
     built.runner.step(1.0 / 60.0);
     built.supervisor.check();

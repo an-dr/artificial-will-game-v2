@@ -56,7 +56,9 @@ replacement for extension cleanup.
 Esc pauses native simulation and character behavior without unloading either
 gameplay extension, preserving the exact session for Resume. The menu keeps
 receiving frame ticks and publishing its game-rendered overlay while gameplay
-is paused.
+is paused. Game-owned `game/pause-changed` and `game/session-reset` signals
+notify gameplay listeners; `game-core/entity-op` remains a command channel
+with only game-core as its reader.
 
 ## Display preferences
 
@@ -73,14 +75,15 @@ rewritten after the user selects a valid setting.
 ```text
 dist/
 ├── artificial-will[.exe]
-├── core/
-│   ├── menu.wasm
-│   └── will.wasm
-└── levels/
-    ├── level_one.wasm
-    └── level_two.wasm
+└── extensions/
+    ├── core/
+    │   ├── menu.wasm
+    │   └── will.wasm
+    └── levels/
+        ├── level_one.wasm
+        └── level_two.wasm
 ```
 
 Cargo package metadata assigns each component its distribution group. The
 packager rejects missing or unknown groups rather than silently flattening an
-artifact.
+artifact. Runtime discovery is confined to the dedicated `extensions/` root.

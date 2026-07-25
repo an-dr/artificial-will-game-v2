@@ -2,6 +2,7 @@ use crate::bones::core::host_api::publish;
 use bones_messages::game_core::{BodyKind, EntityOp, PhysicsWorlds, Shape};
 use bones_messages::gfx::LoadSprite;
 use bones_messages::{EncodeMessage, Message};
+use game_messages::{WILL_ENTITY_ID, WILL_SPAWN};
 
 use crate::player_state::{
     PlayerState, ATTACK_DOWN_SPRITE_ID, ATTACK_SIDE_SPRITE_ID, ATTACK_UP_SPRITE_ID,
@@ -22,9 +23,6 @@ const ATTACK_UP_PNG: &[u8] = include_bytes!("../../../assets/RPGMCharacter_v1.0/
 const ATTACK_SIDE_PNG: &[u8] =
     include_bytes!("../../../assets/RPGMCharacter_v1.0/_side attack.png");
 
-const WILL_ENTITY_ID: u32 = 1;
-const WILL_BODY_KIND: BodyKind = BodyKind::Frictionless;
-
 pub fn load_sprites() {
     let sprites: [(u32, &[u8]); 9] = [
         (IDLE_DOWN_SPRITE_ID, IDLE_DOWN_PNG),
@@ -42,20 +40,24 @@ pub fn load_sprites() {
     }
 }
 
-pub fn spawn(state: &PlayerState) {
+fn spawn_op(state: &PlayerState) -> EntityOp {
     let presentation = state.presentation();
-    publish_entity_op(EntityOp::Spawn {
+    EntityOp::Spawn {
         entity_id: WILL_ENTITY_ID,
-        x: 464.0,
-        y: 464.0,
+        x: WILL_SPAWN.0,
+        y: WILL_SPAWN.1,
         sprite: Some(presentation.sprite),
         square_color: (0, 0, 0, 0),
         shape: Shape::Rect,
         collider_half_w: 10.0,
         collider_half_h: 27.0,
-        body_kind: WILL_BODY_KIND,
+        body_kind: BodyKind::Frictionless,
         worlds: PhysicsWorlds::RETRO,
-    });
+    }
+}
+
+pub fn spawn(state: &PlayerState) {
+    publish_entity_op(spawn_op(state));
     publish_presentation(state);
 }
 

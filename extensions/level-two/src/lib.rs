@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(dead_code))]
+
 wit_bindgen::generate!({
     path: "../../vendor/bones/wit",
     world: "extension",
@@ -10,6 +12,7 @@ use bones_messages::game_core::{
 };
 use bones_messages::gfx::LoadSprite;
 use bones_messages::{EncodeMessage, Message};
+use game_messages::WILL_ENTITY_ID;
 
 const LEVEL_TWO_TMX: &[u8] = include_bytes!("../assets/level-two.tmx");
 const GRASS_PNG: &[u8] = include_bytes!(
@@ -27,7 +30,6 @@ const SLIME_THREE_PNG: &[u8] = include_bytes!(
     "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Idle_with_shadow.png"
 );
 
-const WILL_ENTITY_ID: u32 = 1;
 const GRASS_SPRITE_ID: u32 = 20;
 const ROCK_CLUSTER_SPRITE_ID: u32 = 21;
 const BOULDER_SPRITE_ID: u32 = 22;

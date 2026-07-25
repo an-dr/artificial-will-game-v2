@@ -13,7 +13,10 @@ fn selecting_level_one_replaces_the_session_and_enters_gameplay() {
     state.open_level_selection();
     assert_eq!(
         state.select_level(Level::One),
-        SessionRequest::Replace(Level::One)
+        SessionRequest::Replace {
+            previous: None,
+            next: Level::One
+        }
     );
     assert_eq!(state.screen(), Screen::Gameplay);
     assert_eq!(state.active_level(), Some(Level::One));
@@ -26,10 +29,29 @@ fn selecting_level_two_uses_its_independent_extension() {
     state.open_level_selection();
     assert_eq!(
         state.select_level(Level::Two),
-        SessionRequest::Replace(Level::Two)
+        SessionRequest::Replace {
+            previous: None,
+            next: Level::Two
+        }
     );
     assert_eq!(state.active_level(), Some(Level::Two));
     assert_eq!(Level::Two.extension_name(), "level_two");
+}
+
+#[test]
+fn switching_levels_carries_the_previous_session_in_the_request() {
+    let mut state = MenuState::default();
+    state.select_level(Level::One);
+    state.pause();
+    state.open_level_selection();
+
+    assert_eq!(
+        state.select_level(Level::Two),
+        SessionRequest::Replace {
+            previous: Some(Level::One),
+            next: Level::Two
+        }
+    );
 }
 
 #[test]
@@ -77,7 +99,10 @@ fn returning_home_stops_only_an_active_session() {
     let mut state = MenuState::default();
     assert_eq!(state.return_to_start(), None);
     state.select_level(Level::One);
-    assert_eq!(state.return_to_start(), Some(SessionRequest::Stop));
+    assert_eq!(
+        state.return_to_start(),
+        Some(SessionRequest::Stop(Level::One))
+    );
     assert_eq!(state.screen(), Screen::Start);
     assert_eq!(state.active_level(), None);
 }

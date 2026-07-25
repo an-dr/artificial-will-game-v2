@@ -1,4 +1,6 @@
 use super::*;
+use game_messages::WILL_SPAWN;
+use std::collections::HashSet;
 
 #[test]
 fn ground_mix_uses_only_opaque_grass_and_broken_stone_cells() {
@@ -20,14 +22,14 @@ fn ground_mix_uses_only_opaque_grass_and_broken_stone_cells() {
     assert!(tile_ids
         .iter()
         .all(|id| { matches!(id, 1 | 2 | 3 | 4 | 11 | 12 | 15) }));
-    assert!(tile_ids.iter().any(|id| matches!(id, 1 | 2 | 3 | 4)));
+    assert!(tile_ids.iter().any(|id| matches!(id, 1..=4)));
     assert!(tile_ids.iter().any(|id| matches!(id, 11 | 12 | 15)));
 }
 
 #[test]
 fn rock_field_is_dense_and_keeps_wills_spawn_clear() {
     assert!(ROCKS.len() >= 14);
-    let spawn = (464.0, 464.0);
+    let spawn = WILL_SPAWN;
     assert!(ROCKS.iter().all(|rock| {
         (spawn.0 - rock.x).abs() > rock.half_w + 32.0
             || (spawn.1 - rock.y).abs() > rock.half_h + 32.0
@@ -36,14 +38,20 @@ fn rock_field_is_dense_and_keeps_wills_spawn_clear() {
 
 #[test]
 fn rock_entity_ids_leave_room_for_will_and_slimes() {
-    assert!(ROCK_ID_START > WILL_ENTITY_ID);
-    assert!(ROCK_ID_START + (ROCKS.len() as u32) < SLIME_ID_START);
+    let rock_ids = (0..ROCKS.len())
+        .map(|index| ROCK_ID_START + index as u32)
+        .collect::<HashSet<_>>();
+    let slime_ids = (0..SLIMES.len())
+        .map(|index| SLIME_ID_START + index as u32)
+        .collect::<HashSet<_>>();
+    assert!(!rock_ids.contains(&WILL_ENTITY_ID));
+    assert!(rock_ids.is_disjoint(&slime_ids));
 }
 
 #[test]
 fn passive_slimes_are_clear_of_will_and_rocks() {
     assert_eq!(SLIMES.len(), 6);
-    let will_spawn = (464.0, 464.0);
+    let will_spawn = WILL_SPAWN;
     for &(_, x, y) in SLIMES {
         assert!(
             (will_spawn.0 - x).abs() > SLIME_COLLIDER_HALF_W + 10.0
@@ -69,10 +77,11 @@ fn slime_idle_presentation_loops_while_stationary() {
 
 #[test]
 fn slime_ids_are_unique_and_separate_from_level_geometry() {
-    let last_rock_id = ROCK_ID_START + ROCKS.len() as u32 - 1;
-    let last_slime_id = SLIME_ID_START + SLIMES.len() as u32 - 1;
-    assert!(SLIME_ID_START > last_rock_id);
-    assert_eq!(last_slime_id - SLIME_ID_START + 1, SLIMES.len() as u32);
+    let slime_ids = (0..SLIMES.len())
+        .map(|index| SLIME_ID_START + index as u32)
+        .collect::<HashSet<_>>();
+    assert_eq!(slime_ids.len(), SLIMES.len());
+    assert!(!slime_ids.contains(&WILL_ENTITY_ID));
 }
 
 #[test]

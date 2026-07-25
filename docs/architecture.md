@@ -13,7 +13,8 @@ flowchart LR
     Platform -->|"input/* + core/tick"| Will
     Menu["menu.wasm<br/>navigation + settings + sessions"] -->|"load / unload"| Manager["bones extension manager"]
     Menu -->|"screen-space gfx + display"| Renderer
-    Menu -->|"pause / reset"| GameCore
+    Menu -->|"pause / reset commands"| GameCore
+    Menu -->|"pause / session-reset signals"| Will
     Manager --> Level["selected level.wasm<br/>TMX + entities + camera setup"]
     Manager --> Will
     Level["selected level.wasm<br/>TMX + entities + camera setup"] -->|"typed game-core operations"| GameCore
@@ -79,7 +80,9 @@ The repository-level `assets/` directory is a byte-for-byte copy of every
 asset tracked by v1, including upstream license and source-package files.
 `cargo build` also builds the WASM workspace. `cargo xtask dist` selects the
 workspace's current `cdylib` targets and validated distribution groups from
-Cargo metadata. It produces the executable with `core/menu.wasm`,
-`core/will.wasm`, `levels/level_one.wasm`, and `levels/level_two.wasm`,
-preventing removed, stale, or ungrouped artifacts from leaking into a
-distribution.
+Cargo metadata. It produces the executable with
+`extensions/core/menu.wasm`, `extensions/core/will.wasm`,
+`extensions/levels/level_one.wasm`, and
+`extensions/levels/level_two.wasm`, preventing removed, stale, or ungrouped
+artifacts from leaking into a distribution or unrelated executable
+directories from entering extension discovery.

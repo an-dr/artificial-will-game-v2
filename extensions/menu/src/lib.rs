@@ -1,4 +1,5 @@
-#[cfg(not(test))]
+#![cfg_attr(test, allow(dead_code))]
+
 wit_bindgen::generate!({
     path: "../../vendor/bones/wit",
     world: "extension",
@@ -12,13 +13,11 @@ mod resolution_options;
 mod screen;
 mod session_request;
 
-#[cfg(not(test))]
 mod runtime;
 
-#[cfg(not(test))]
+#[cfg_attr(test, allow(dead_code))]
 struct Component;
 
-#[cfg(not(test))]
 impl Guest for Component {
     fn shutdown() {
         runtime::shutdown();

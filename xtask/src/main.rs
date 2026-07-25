@@ -5,8 +5,8 @@
 //! `dist`: builds the `game` package (root `Cargo.toml`; its own `build.rs`
 //! builds every `extensions/` workspace member as a side effect), then
 //! assembles a self-contained `dist/` -- the game binary plus each
-//! extension's `.wasm` in its metadata-selected `core/` or `levels/`
-//! directory, ready to copy anywhere and run as-is.
+//! extension's `.wasm` in its metadata-selected `extensions/core/` or
+//! `extensions/levels/` directory, ready to copy anywhere and run as-is.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -85,7 +85,6 @@ fn extension_artifacts(extensions_dir: &Path) -> Result<Vec<(String, String)>, S
         let package_name = package["name"]
             .as_str()
             .ok_or("cargo metadata package omitted name")?;
-        let group = dist_group(package, package_name)?;
         let targets = package["targets"]
             .as_array()
             .ok_or("cargo metadata package omitted targets")?;
@@ -96,6 +95,7 @@ fn extension_artifacts(extensions_dir: &Path) -> Result<Vec<(String, String)>, S
             if !crate_types.iter().any(|kind| kind == "cdylib") {
                 continue;
             }
+            let group = dist_group(package, package_name)?;
             let name = target["name"]
                 .as_str()
                 .ok_or("cargo metadata target omitted name")?;
@@ -141,7 +141,7 @@ fn dist() -> Result<(), String> {
     let ext_release = extensions_dir.join("target/wasm32-wasip2/release");
     for (group, artifact_name) in extension_artifacts(&extensions_dir)? {
         let path = ext_release.join(&artifact_name);
-        let group_dir = dist_dir.join(group);
+        let group_dir = dist_dir.join("extensions").join(group);
         std::fs::create_dir_all(&group_dir)
             .map_err(|err| format!("creating {}: {err}", group_dir.display()))?;
         std::fs::copy(&path, group_dir.join(&artifact_name))

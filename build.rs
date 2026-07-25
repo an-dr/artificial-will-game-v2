@@ -12,6 +12,8 @@ use std::process::Command;
 fn main() {
     println!("cargo:rerun-if-changed=extensions/Cargo.toml");
     println!("cargo:rerun-if-changed=extensions/Cargo.lock");
+    println!("cargo:rerun-if-changed=extensions/game-messages/Cargo.toml");
+    println!("cargo:rerun-if-changed=extensions/game-messages/src");
     println!("cargo:rerun-if-changed=extensions/level-one/Cargo.toml");
     println!("cargo:rerun-if-changed=extensions/level-one/src");
     println!("cargo:rerun-if-changed=extensions/level-one/assets");

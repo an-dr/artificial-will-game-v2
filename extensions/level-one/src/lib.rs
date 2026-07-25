@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(dead_code))]
+
 wit_bindgen::generate!({
     path: "../../vendor/bones/wit",
     world: "extension",
@@ -20,6 +22,8 @@ const WILL_ENTITY_ID: u32 = 1;
 const BOX_SPRITE_ID: u32 = 2;
 const GRASS_SPRITE_ID: u32 = 3;
 const FRAME_SIZE: u32 = 64;
+const BOX_ID_START: u32 = 2;
+const BOXES: &[(f32, f32)] = &[(242.0, 442.0), (432.0, 532.0), (532.0, 432.0)];
 
 fn publish_entity_op(op: EntityOp) {
     publish(EntityOpMessage::TOPIC, &EntityOpMessage(op).encode());
@@ -70,9 +74,9 @@ fn spawn_box(entity_id: u32, x: f32, y: f32) {
 }
 
 fn spawn_level_entities() {
-    spawn_box(2, 242.0, 442.0);
-    spawn_box(3, 432.0, 532.0);
-    spawn_box(4, 532.0, 432.0);
+    for (index, &(x, y)) in BOXES.iter().enumerate() {
+        spawn_box(BOX_ID_START + index as u32, x, y);
+    }
 }
 
 fn configure_camera() {
@@ -91,8 +95,10 @@ struct Component;
 
 impl Guest for Component {
     fn shutdown() {
-        for entity_id in 2..=4 {
-            publish_entity_op(EntityOp::Despawn { entity_id });
+        for index in 0..BOXES.len() {
+            publish_entity_op(EntityOp::Despawn {
+                entity_id: BOX_ID_START + index as u32,
+            });
         }
     }
 
@@ -112,3 +118,18 @@ impl Guest for Component {
 
 #[cfg(not(test))]
 export!(Component);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn box_ids_are_derived_from_the_spawn_table_and_do_not_use_wills_id() {
+        let ids = (0..BOXES.len())
+            .map(|index| BOX_ID_START + index as u32)
+            .collect::<HashSet<_>>();
+        assert_eq!(ids.len(), BOXES.len());
+        assert!(!ids.contains(&WILL_ENTITY_ID));
+    }
+}

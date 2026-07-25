@@ -2,6 +2,7 @@ use crate::level::Level;
 use crate::screen::Screen;
 use crate::session_request::SessionRequest;
 
+/// Pure navigation state for the game menu and active level session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MenuState {
     screen: Screen,
@@ -20,24 +21,32 @@ impl Default for MenuState {
 }
 
 impl MenuState {
+    /// Returns the currently visible menu screen.
     pub fn screen(self) -> Screen {
         self.screen
     }
 
+    /// Returns the level backing the current gameplay session, if any.
     pub fn active_level(self) -> Option<Level> {
         self.active_level
     }
 
+    /// Opens level selection from the current menu context.
     pub fn open_level_selection(&mut self) {
         self.screen = Screen::LevelSelection;
     }
 
+    /// Selects `level`, enters gameplay, and returns the required lifecycle effect.
     pub fn select_level(&mut self, level: Level) -> SessionRequest {
-        self.active_level = Some(level);
+        let previous = self.active_level.replace(level);
         self.screen = Screen::Gameplay;
-        SessionRequest::Replace(level)
+        SessionRequest::Replace {
+            previous,
+            next: level,
+        }
     }
 
+    /// Returns from level selection; `false` means the transition was unavailable.
     pub fn cancel_level_selection(&mut self) -> bool {
         if self.screen != Screen::LevelSelection {
             return false;
@@ -50,6 +59,7 @@ impl MenuState {
         true
     }
 
+    /// Pauses live gameplay; `false` means no live gameplay screen was active.
     pub fn pause(&mut self) -> bool {
         if self.screen != Screen::Gameplay || self.active_level.is_none() {
             return false;
@@ -58,6 +68,7 @@ impl MenuState {
         true
     }
 
+    /// Resumes paused gameplay; `false` means the pause screen was not active.
     pub fn resume(&mut self) -> bool {
         if self.screen != Screen::Pause {
             return false;
@@ -66,6 +77,7 @@ impl MenuState {
         true
     }
 
+    /// Opens settings; `false` means the current screen cannot open them.
     pub fn open_settings(&mut self) -> bool {
         if !matches!(self.screen, Screen::Start | Screen::Pause) {
             return false;
@@ -75,6 +87,7 @@ impl MenuState {
         true
     }
 
+    /// Closes settings to their opener; `false` means settings were not open.
     pub fn close_settings(&mut self) -> bool {
         if self.screen != Screen::Settings {
             return false;
@@ -83,8 +96,9 @@ impl MenuState {
         true
     }
 
+    /// Returns home and requests that any active session be stopped.
     pub fn return_to_start(&mut self) -> Option<SessionRequest> {
-        let request = self.active_level.take().map(|_| SessionRequest::Stop);
+        let request = self.active_level.take().map(SessionRequest::Stop);
         self.screen = Screen::Start;
         request
     }

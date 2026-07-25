@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(dead_code))]
+
 wit_bindgen::generate!({
     path: "../../vendor/bones/wit",
     world: "extension",
@@ -14,10 +16,9 @@ use bones::core::host_api::{log, publish, subscribe, Level};
 use bones_messages::game_core::{EntityOp, EntityOpMessage};
 use bones_messages::input::{KeyDown, KeyUp};
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
+use game_messages::{PauseChanged, SessionReset, WILL_ENTITY_ID};
 use held_keys::HeldKeys;
 use player_state::PlayerState;
-
-const WILL_ENTITY_ID: u32 = 1;
 
 thread_local! {
     static HELD_KEYS: RefCell<HeldKeys> = RefCell::new(HeldKeys::default());
@@ -83,7 +84,8 @@ impl Guest for Component {
         reset_state();
         subscribe(KeyDown::TOPIC);
         subscribe(KeyUp::TOPIC);
-        subscribe(EntityOpMessage::TOPIC);
+        subscribe(PauseChanged::TOPIC);
+        subscribe(SessionReset::TOPIC);
         subscribe("core/tick");
 
         character::load_sprites();
@@ -127,15 +129,12 @@ impl Guest for Component {
                     }
                 }
             }
-            EntityOpMessage::TOPIC => {
-                if let Ok(EntityOpMessage(op)) = EntityOpMessage::decode(&payload) {
-                    match op {
-                        EntityOp::SetPaused { paused } => set_paused(paused),
-                        EntityOp::Reset => reset_state(),
-                        _ => {}
-                    }
+            PauseChanged::TOPIC => {
+                if let Ok(message) = PauseChanged::decode(&payload) {
+                    set_paused(message.paused);
                 }
             }
+            SessionReset::TOPIC if SessionReset::decode(&payload).is_ok() => reset_state(),
             _ => {}
         }
         None

@@ -1,10 +1,14 @@
 const VERSION: u8 = 1;
 const ENCODED_LEN: usize = 10;
 
+/// Persisted window size and fullscreen preference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DisplayPreferences {
+    /// Requested display width in pixels.
     pub width: u32,
+    /// Requested display height in pixels.
     pub height: u32,
+    /// Whether the game should use fullscreen display mode.
     pub fullscreen: bool,
 }
 
@@ -19,6 +23,7 @@ impl Default for DisplayPreferences {
 }
 
 impl DisplayPreferences {
+    /// Encodes the versioned preference record for persistence.
     pub fn encode(self) -> [u8; ENCODED_LEN] {
         let mut bytes = [0; ENCODED_LEN];
         bytes[0] = VERSION;
@@ -28,6 +33,7 @@ impl DisplayPreferences {
         bytes
     }
 
+    /// Decodes a valid preference record, rejecting unknown or malformed data.
     pub fn decode(bytes: &[u8]) -> Option<Self> {
         if bytes.len() != ENCODED_LEN || bytes[0] != VERSION || bytes[9] > 1 {
             return None;
