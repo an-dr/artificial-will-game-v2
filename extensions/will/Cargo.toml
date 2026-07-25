@@ -1,5 +1,5 @@
 [package]
-name = "hello"
+name = "will"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,5 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+bones-messages = { path = "../../vendor/bones/shared/bones-messages" }
 wit-bindgen = "0.59.0"

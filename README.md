@@ -7,9 +7,9 @@ game about a robot named Will overcoming obstacles — built on
 behavior shipped as WASM extensions, instead of the original's hand-rolled
 C++/SDL2/EnTT engine.
 
-See [docs/architecture.md](docs/architecture.md) for the reimplementation
-plan (draft) and [AGENTS.md](AGENTS.md) for the AI-agent workflow this repo
-uses ([an-dr/agents](https://github.com/an-dr/agents)).
+See [docs/architecture.md](docs/architecture.md) for the implemented system
+boundaries and [AGENTS.md](AGENTS.md) for the AI-agent workflow this repo uses
+([an-dr/agents](https://github.com/an-dr/agents)).
 
 ## Repository layout
 
@@ -28,7 +28,7 @@ uses ([an-dr/agents](https://github.com/an-dr/agents)).
 - `build.rs` — builds the `extensions/` workspace as part of `cargo build`,
   so there's no separate manual step for day-to-day iteration.
 - `extensions/` — a separate Cargo workspace (different target: `wasm32-
-  wasip2`): one crate per WASM extension (game logic), sharing one
+  wasip2`): independent level and character WASM components sharing one
   `target/` so every extension's `.wasm` lands in one predictable directory.
 - `xtask/` — a small Rust program (not a shell script) that assembles a
   self-contained `dist/`: run via `cargo xtask dist` (aliased in
@@ -45,12 +45,12 @@ git submodule update --init --recursive
 Requires Rust (`rustup target add wasm32-wasip2`) and, for `vendor/bones`
 itself, a C toolchain + CMake (it builds SDL3 from source) — see
 [vendor/bones' own README](vendor/bones/README.md). If cmake can't find a
-generator, set `CMAKE_GENERATOR=Ninja` (or point it at whatever compiler/
-generator you have).
+generator, use the platform's compiler environment and set
+`CMAKE_GENERATOR=Ninja` (or point it at another installed generator).
 
 ## Build & run
 
-Plain `cargo` — no build scripts for day-to-day work:
+Plain `cargo` — no separate extension or asset-copy command:
 
 ```sh
 cargo run --release
@@ -61,6 +61,15 @@ extension in `extensions/` — one command. `src/paths.rs` finds them at
 `extensions/target/wasm32-wasip2/release` relative to the exe (the dev-tree
 layout); a shipped `dist/` build has `extensions/` sitting right next to
 the binary instead, and that's checked first.
+
+## Controls
+
+- Move with WASD or the arrow keys at 160 pixels per second on each axis.
+- Press Space to play the facing-dependent attack animation once.
+
+Will keeps moving during an attack, but facing remains fixed until its two
+frames finish. Walk and idle animations select down, up, or side sheets; the
+right-facing side sheet is mirrored.
 
 ## Testing a self-contained build
 
@@ -75,13 +84,7 @@ cargo xtask dist
 ```
 
 A real Rust program (`xtask/`, not a script) that builds `game` and every
-extension, then assembles `dist/artificial-will(.exe)` +
+current extension target, then assembles `dist/artificial-will(.exe)` +
 `dist/extensions/*.wasm` in one command — copy `dist/` anywhere and run it
 as-is. This replaces manually rebuilding bones as an app and copying
 `.wasm` files into some folder by hand every time you want to test that.
-
-## Hello world
-
-[extensions/hello](extensions/hello) is a minimal WASM extension proving the
-engine + toolchain work end to end, before any real game logic exists — see
-its own README for what it does.

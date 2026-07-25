@@ -1,101 +1,62 @@
-# Architecture (draft)
+# Architecture
 
-Status: draft — sketches the intended shape of the v2 reimplementation before
-any real level exists. Expect this to change once `extensions/hello` grows
-into an actual player/level and the plan meets reality. Not yet held to
-[bones' own altitude rule](../vendor/bones/docs/index.md) (behavior/boundaries,
-not code) since nothing below is built yet — tighten once it is.
+Artificial Will v2 keeps the original game's level and character behavior
+while replacing its hand-rolled C++ engine with bones. Native modules own
+platform access and reusable 2D facilities; separate WASM components own the
+level and character rules.
 
-## Why a v2
-
-[artificial-will-game](https://github.com/an-dr/artificial-will-game) (a
-robot named Will overcoming obstacles) was a C++/SDL2/EnTT engine written
-from scratch: its own `World`/`registry`, hand-rolled systems for input,
-movement+collision, camera, state, rendering. `bones` already provides a
-native `game-core` module — ECS, physics/collision (two swappable backends),
-Tiled tilemap loading, sprite-animation timing, camera-follow with level-edge
-clamping — covering most of what that hand-rolled engine did. v2 targets
-that module instead of rebuilding it, and keeps only what's actually
-game-specific (Will's own behavior) as WASM extensions on top.
-
-## Old → new mapping
-
-| v1 (C++, hand-rolled) | v2 (bones) |
-| --- | --- |
-| `World` (`registry_`, `TileMap`, `CameraState`) | `game-core` native module (`vendor/bones/core/game-core`) |
-| `ComponentGeometry`, `ComponentSpriteRendering`, `ComponentCollider`, `ComponentType` | `EntityOp::Spawn` fields (`game-core/entity-op`) |
-| `TileMap` (own parser) | `game-core/load-tilemap` (Tiled `.tmx`, `"Collision"`/`"Ground"` layers) |
-| `SystemMovementAndCollision` | `game-core`'s own physics step (`rapier2d` or retro backend) |
-| `SystemCamera` + `CameraState` (follow + world-bounds clamp) | `EntityOp::SetCameraFollow`, already clamped to level size |
-| `SystemRendering` + `GpuAssetManager` | `core/renderer` executing `gfx/*` batches — `game-core` emits these, nothing draws directly |
-| `SystemInput` + `ComponentInput` | an extension reading `input/*`, issuing `EntityOp::SetVelocity` |
-| `SystemState` + `IStateMachine` (`ComponentState`) | **not yet covered by bones** — stays a v2 extension (see below) |
-| `ComponentPlayer`, `player_one.hpp`, `level_one.hpp` | game-specific extensions + one or more `.tmx` levels |
-
-## Top level
+## System boundary
 
 ```mermaid
 flowchart LR
-    subgraph Platform["bones platform (kernel)"]
-        Input["input/*"]
-        Tick["core/tick"]
-    end
-
-    subgraph GameCore["game-core (native module)"]
-        Physics["ECS + physics + tilemap"]
-        Camera["camera-follow"]
-    end
-
-    subgraph Extensions["v2 extensions (WASM)"]
-        PlayerExt["player<br/>(input → SetVelocity)"]
-        StateExt["will-state<br/>(idle/walk/attack)"]
-        LevelExt["level loader<br/>(spawns from .tmx + EntityOp)"]
-    end
-
-    subgraph Renderer["core/renderer (native module)"]
-        Gfx["gfx/* batches"]
-    end
-
-    Input -->|input/*| PlayerExt
-    Tick -->|core/tick| PlayerExt
-    Tick -->|core/tick| StateExt
-    PlayerExt -->|EntityOp::SetVelocity| Physics
-    LevelExt -->|EntityOp::Spawn, load-tilemap| Physics
-    StateExt -->|EntityOp::Spawn re-publish| Physics
-    Physics --> Camera
-    Physics -->|game-core/collision| StateExt
-    Camera -->|gfx::SetCamera| Gfx
-    Physics -->|gfx::DrawSprite / DrawRect| Gfx
+    Platform["bones platform<br/>window + input + tick"] -->|"input/* + core/tick"| Will
+    Level["level_one.wasm<br/>TMX + boxes + camera setup"] -->|"typed game-core operations"| GameCore
+    Will["will.wasm<br/>character + controls + state"] -->|"typed game-core operations"| GameCore
+    GameCore["bones game-core<br/>ECS + retro physics + tilemap + camera"] -->|"gfx batches"| Renderer
+    Renderer["bones renderer"] --> Window["SDL3 window"]
+    Platform --> Renderer
 ```
 
-Everything left of "Extensions" is bones as-is, unmodified. Everything in
-"Extensions" is what v2 actually builds.
+The root `game` binary embeds the bones runner, renderer, UI, and game-core
+modules. It discovers the `level_one` and `will` components beside a
+distributed executable or in the extension workspace during development. Each
+component embeds its own TMX or image bytes, so runtime behavior does not
+depend on a working directory or loose asset paths. More levels can be added
+as independent components without expanding the character component.
 
-## Open questions
+## Engine and game ownership
 
-- **State machine.** v1's `SystemState`/`IStateMachine` (per-entity states
-  driving animation/behavior, e.g. idle → walk → attack) has no bones
-  equivalent yet. Candidate shapes: a single extension owning all of Will's
-  states and re-publishing `EntityOp::Spawn` with a different sprite/atlas
-  on transition, vs. proposing a generic state concept upstream in
-  `game-core` (an ADR-sized decision, not a v2-local one). Default plan is
-  the former until it proves too limiting.
-- **Attack / combat.** No v1 equivalent existed either (`attack_pressed` was
-  read but never wired to a system) — combat is net-new design, not a port.
-- **Which physics backend.** `rapier2d` (real physics, momentum) vs. the
-  retro backend (arcade-feel, no momentum) — v1 was arcade-feel by
-  construction (no physics engine at all). Retro is the closer match;
-  confirm once movement is actually playable.
-- **Audio.** v1 had none. `core/audio` (bones) is available whenever the
-  game wants footstep/hit sounds — see
-  `vendor/bones/extensions/game_core_demo` for the pattern.
+Bones owns entity storage, the retro physics world, tilemap rendering, sprite
+animation timing, scaled and mirrored presentation, and clamped smooth camera
+follow. The port added the generally reusable `SetSprite`, camera-smoothing,
+and four/eight-direction `ObjectFacing` capabilities to bones; presentation
+wire compatibility and behavior are documented in the engine's ADR-023.
 
-## Current state
+The `level_one` component owns its TMX, tileset, boxes, and camera setup through
+game-core operations. The `will` component owns character assets and spawning,
+held controls, and the idle/walk/attack state machine. Its bindings are
+isolated from the pure state modules, and it uses bones `ObjectFacing` in
+cardinal mode to preserve v1 behavior. Switching animation changes presentation
+in place and never replaces Will's transform or collider.
 
-The `game` package (root `Cargo.toml`/`src/`) embeds `bones` directly as
-path dependencies (`runner`, `game-core`) and already registers `game-core`
-as a module — but only [`extensions/hello`](../extensions/hello) exists as
-actual WASM content today, a smoke-test proving the toolchain works end to
-end (`cargo run --release` builds engine + extensions in one command via
-root `build.rs`; see root [README.md](../README.md)). No level, no player,
-no real `game-core` usage yet.
+## Fidelity to v1
+
+Level one is a 16×16 Tiled map using the original 64-pixel grass tiles and the
+same six non-default cells. Will and the three pushable boxes retain their
+original drawn sizes, hitboxes, and starting positions. Movement remains 160
+pixels per second on each axis without diagonal normalization.
+
+Will chooses facing from the dominant movement axis, mirrors the side sheet
+only when facing right, and uses the original five-frame 8 fps idle/walk
+animations. Space starts the original two-frame visual attack on a press edge;
+movement continues and facing freezes until it finishes. The original has no
+attack damage or audio behavior, so the port does not invent either.
+
+## Assets and packaging
+
+The repository-level `assets/` directory is a byte-for-byte copy of every
+asset tracked by v1, including upstream license and source-package files.
+`cargo build` also builds the WASM workspace. `cargo xtask dist` selects the
+workspace's current `cdylib` targets from Cargo metadata and packages the
+current level and character components beside the native executable,
+preventing removed or stale WASM artifacts from leaking into a distribution.

@@ -11,8 +11,9 @@ cargo build --release --target wasm32-wasip2
 ```
 
 Output: `target/wasm32-wasip2/release/<name>.wasm` for every member —
-exactly what the repo root `bones.toml`'s `extensions_dir` points at.
+exactly where the embedded game's development path looks for components.
 
 Adding an extension: create a new crate here (`cdylib`, depends on
 `wit-bindgen`, generates against `../vendor/bones/wit`) and add it to this
-file's `[workspace] members`. See [hello](hello) for the reference shape.
+file's `[workspace] members`. [level-one](level-one) owns the first level's
+game-core setup; [will](will) owns the character.

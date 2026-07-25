@@ -12,8 +12,12 @@ use std::process::Command;
 fn main() {
     println!("cargo:rerun-if-changed=extensions/Cargo.toml");
     println!("cargo:rerun-if-changed=extensions/Cargo.lock");
-    println!("cargo:rerun-if-changed=extensions/hello/Cargo.toml");
-    println!("cargo:rerun-if-changed=extensions/hello/src");
+    println!("cargo:rerun-if-changed=extensions/level-one/Cargo.toml");
+    println!("cargo:rerun-if-changed=extensions/level-one/src");
+    println!("cargo:rerun-if-changed=extensions/level-one/assets");
+    println!("cargo:rerun-if-changed=extensions/will/Cargo.toml");
+    println!("cargo:rerun-if-changed=extensions/will/src");
+    println!("cargo:rerun-if-changed=assets");
 
     let extensions_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("extensions");
     let status = Command::new("cargo")
