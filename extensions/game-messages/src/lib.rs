@@ -1,6 +1,13 @@
 //! Game-owned message contracts and entity constants shared by extensions.
 
+mod combat;
+
 use bones_messages::{DecodeError, DecodeMessage, EncodeMessage, Message, Reader, Writer};
+
+pub use combat::{
+    AttackDirection, AttackRequested, AttackTarget, HitConfirmed, PlayerDamaged, PlayerDefeated,
+    PlayerStats, RewardGranted, select_attack_target,
+};
 
 /// Stable entity id used by the Will extension.
 pub const WILL_ENTITY_ID: u32 = 1;
@@ -33,7 +40,7 @@ impl<'a> DecodeMessage<'a> for PauseChanged {
                 return Err(DecodeError::InvalidTag {
                     message: "pause state",
                     tag,
-                })
+                });
             }
         };
         reader.finish()?;
