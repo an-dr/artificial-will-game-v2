@@ -5,14 +5,19 @@ wit_bindgen::generate!({
     world: "extension",
 });
 
-use bones::core::host_api::{log, publish, Level};
+mod slime_state;
+
+use std::cell::RefCell;
+
+use bones::core::host_api::{log, publish, subscribe, Level};
 use bones_messages::game_core::{
-    BodyKind, EntityOp, EntityOpMessage, LoadTilemap, PhysicsWorlds, Shape, Sprite,
-    SpritePresentation, TilesetImage,
+    BodyKind, Collision, EntityOp, EntityOpMessage, EntityTransform, LoadTilemap, PhysicsWorlds,
+    Shape, Sprite, SpritePresentation, TilesetImage,
 };
 use bones_messages::gfx::LoadSprite;
-use bones_messages::{EncodeMessage, Message};
-use game_messages::WILL_ENTITY_ID;
+use bones_messages::{DecodeMessage, EncodeMessage, Message};
+use game_messages::{PauseChanged, PlayerDamaged, WILL_ENTITY_ID, WILL_SPAWN};
+use slime_state::{SlimeField, SlimeSpawn};
 
 const LEVEL_TWO_TMX: &[u8] = include_bytes!("../assets/level-two.tmx");
 const GRASS_PNG: &[u8] = include_bytes!(
@@ -71,14 +76,19 @@ const ROCKS: &[Rock] = &[
     Rock::cluster(480.0, 800.0),
     Rock::boulder(800.0, 800.0),
 ];
-const SLIMES: &[(u32, f32, f32)] = &[
-    (SLIME_SPRITE_IDS[0], 480.0, 288.0),
-    (SLIME_SPRITE_IDS[1], 480.0, 576.0),
-    (SLIME_SPRITE_IDS[2], 240.0, 528.0),
-    (SLIME_SPRITE_IDS[0], 800.0, 512.0),
-    (SLIME_SPRITE_IDS[1], 640.0, 752.0),
-    (SLIME_SPRITE_IDS[2], 416.0, 720.0),
+const SLIMES: &[SlimeSpawn] = &[
+    SlimeSpawn::new(SLIME_SPRITE_IDS[0], 480.0, 288.0),
+    SlimeSpawn::new(SLIME_SPRITE_IDS[1], 480.0, 576.0),
+    SlimeSpawn::new(SLIME_SPRITE_IDS[2], 240.0, 528.0),
+    SlimeSpawn::new(SLIME_SPRITE_IDS[0], 800.0, 512.0),
+    SlimeSpawn::new(SLIME_SPRITE_IDS[1], 640.0, 752.0),
+    SlimeSpawn::new(SLIME_SPRITE_IDS[2], 416.0, 720.0),
 ];
+
+thread_local! {
+    static SLIME_FIELD: RefCell<SlimeField> =
+        RefCell::new(SlimeField::new(SLIME_ID_START, SLIMES, WILL_SPAWN));
+}
 
 impl Rock {
     const fn cluster(x: f32, y: f32) -> Self {
@@ -108,6 +118,10 @@ impl Rock {
 
 fn publish_entity_op(op: EntityOp) {
     publish(EntityOpMessage::TOPIC, &EntityOpMessage(op).encode());
+}
+
+fn publish_message<M: Message + EncodeMessage>(message: M) {
+    publish(M::TOPIC, &message.encode());
 }
 
 fn load_ruins_map() {
@@ -206,19 +220,19 @@ fn load_slime_sprites() {
 }
 
 fn spawn_slimes() {
-    for (index, &(sprite_id, x, y)) in SLIMES.iter().enumerate() {
+    for (index, slime) in SLIMES.iter().enumerate() {
         let entity_id = SLIME_ID_START + index as u32;
-        let presentation = slime_presentation(sprite_id);
+        let presentation = slime_presentation(slime.sprite_id);
         publish_entity_op(EntityOp::Spawn {
             entity_id,
-            x,
-            y,
+            x: slime.x,
+            y: slime.y,
             sprite: Some(presentation.sprite),
             square_color: (0, 0, 0, 0),
             shape: Shape::Rect,
             collider_half_w: SLIME_COLLIDER_HALF_W,
             collider_half_h: SLIME_COLLIDER_HALF_H,
-            body_kind: BodyKind::Fixed,
+            body_kind: BodyKind::Frictionless,
             worlds: PhysicsWorlds::RETRO,
         });
         publish_entity_op(EntityOp::SetSprite {
@@ -257,6 +271,12 @@ impl Guest for Component {
     }
 
     fn init() {
+        SLIME_FIELD.with(|field| {
+            *field.borrow_mut() = SlimeField::new(SLIME_ID_START, SLIMES, WILL_SPAWN)
+        });
+        subscribe(EntityTransform::TOPIC);
+        subscribe(Collision::TOPIC);
+        subscribe(PauseChanged::TOPIC);
         load_ruins_map();
         load_rock_sprites();
         spawn_rocks();
@@ -265,13 +285,50 @@ impl Guest for Component {
         configure_camera();
         log(
             Level::Info,
-            "level-two: overgrown ruins and idle slimes ready",
+            "level-two: overgrown ruins and hostile slimes ready",
         );
     }
 
-    fn on_tick(_dt: f32) {}
+    fn on_tick(_dt: f32) {
+        SLIME_FIELD.with(|field| {
+            for velocity in field.borrow().velocities() {
+                publish_entity_op(EntityOp::SetVelocity {
+                    entity_id: velocity.entity_id,
+                    vx: velocity.vx,
+                    vy: velocity.vy,
+                });
+            }
+        });
+    }
 
-    fn on_message(_topic: String, _sender: String, _payload: Vec<u8>) -> Option<Vec<u8>> {
+    fn on_message(topic: String, sender: String, payload: Vec<u8>) -> Option<Vec<u8>> {
+        match topic.as_str() {
+            EntityTransform::TOPIC if sender == "game-core" => {
+                if let Ok(transform) = EntityTransform::decode(&payload) {
+                    SLIME_FIELD.with(|field| {
+                        field.borrow_mut().update_transform(
+                            transform.entity_id,
+                            transform.x,
+                            transform.y,
+                        )
+                    });
+                }
+            }
+            Collision::TOPIC if sender == "game-core" => {
+                if let Ok(collision) = Collision::decode(&payload) {
+                    let hit = SLIME_FIELD.with(|field| field.borrow().is_will_contact(collision));
+                    if hit {
+                        publish_message(PlayerDamaged { amount: 1 });
+                    }
+                }
+            }
+            PauseChanged::TOPIC if sender == "menu" => {
+                if let Ok(pause) = PauseChanged::decode(&payload) {
+                    SLIME_FIELD.with(|field| field.borrow_mut().set_paused(pause.paused));
+                }
+            }
+            _ => {}
+        }
         None
     }
 }

@@ -49,17 +49,17 @@ fn rock_entity_ids_leave_room_for_will_and_slimes() {
 }
 
 #[test]
-fn passive_slimes_are_clear_of_will_and_rocks() {
+fn hostile_slimes_start_clear_of_will_and_rocks() {
     assert_eq!(SLIMES.len(), 6);
     let will_spawn = WILL_SPAWN;
-    for &(_, x, y) in SLIMES {
+    for slime in SLIMES {
         assert!(
-            (will_spawn.0 - x).abs() > SLIME_COLLIDER_HALF_W + 10.0
-                || (will_spawn.1 - y).abs() > SLIME_COLLIDER_HALF_H + 27.0
+            (will_spawn.0 - slime.x).abs() > SLIME_COLLIDER_HALF_W + 10.0
+                || (will_spawn.1 - slime.y).abs() > SLIME_COLLIDER_HALF_H + 27.0
         );
         assert!(ROCKS.iter().all(|rock| {
-            (rock.x - x).abs() > rock.half_w + SLIME_COLLIDER_HALF_W
-                || (rock.y - y).abs() > rock.half_h + SLIME_COLLIDER_HALF_H
+            (rock.x - slime.x).abs() > rock.half_w + SLIME_COLLIDER_HALF_W
+                || (rock.y - slime.y).abs() > rock.half_h + SLIME_COLLIDER_HALF_H
         }));
     }
 }
