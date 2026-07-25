@@ -9,7 +9,14 @@ level and character rules.
 
 ```mermaid
 flowchart LR
-    Platform["bones platform<br/>window + input + tick"] -->|"input/* + core/tick"| Will
+    Platform["bones platform<br/>window + input + tick"] -->|"input/* + core/tick"| Menu
+    Platform -->|"input/* + core/tick"| Will
+    Menu["menu.wasm<br/>navigation + settings + sessions"] -->|"load / unload"| Manager["bones extension manager"]
+    Menu -->|"ui specs"| UI["bones UI"]
+    Menu -->|"display"| Renderer
+    Menu -->|"pause / reset"| GameCore
+    Manager --> Level["level_one.wasm<br/>TMX + boxes + camera setup"]
+    Manager --> Will
     Level["level_one.wasm<br/>TMX + boxes + camera setup"] -->|"typed game-core operations"| GameCore
     Will["will.wasm<br/>character + controls + state"] -->|"typed game-core operations"| GameCore
     GameCore["bones game-core<br/>ECS + retro physics + tilemap + camera"] -->|"gfx batches"| Renderer
@@ -18,11 +25,12 @@ flowchart LR
 ```
 
 The root `game` binary embeds the bones runner, renderer, UI, and game-core
-modules. It discovers the `level_one` and `will` components beside a
-distributed executable or in the extension workspace during development. Each
-component embeds its own TMX or image bytes, so runtime behavior does not
-depend on a working directory or loose asset paths. More levels can be added
-as independent components without expanding the character component.
+modules. It starts only `menu`; the menu is the sole authorized runtime
+extension controller and loads `level_one` plus `will` after selection.
+Returning home unloads both and resets game-core, while Escape pauses the
+native simulation and Will's own behavior without destroying the session.
+Each gameplay component embeds its own TMX or image bytes, so runtime behavior
+does not depend on a working directory or loose asset paths.
 
 ## Engine and game ownership
 
@@ -38,6 +46,11 @@ held controls, and the idle/walk/attack state machine. Its bindings are
 isolated from the pure state modules, and it uses bones `ObjectFacing` in
 cardinal mode to preserve v1 behavior. Switching animation changes presentation
 in place and never replaces Will's transform or collider.
+
+The persistent `menu` component owns start, pause, settings, and level-selection
+screens. It queries display modes from the native host, applies resolution and
+fullscreen changes through typed renderer messages, and stores a strict
+versioned preference record through bones persistence.
 
 ## Fidelity to v1
 
@@ -57,6 +70,7 @@ attack damage or audio behavior, so the port does not invent either.
 The repository-level `assets/` directory is a byte-for-byte copy of every
 asset tracked by v1, including upstream license and source-package files.
 `cargo build` also builds the WASM workspace. `cargo xtask dist` selects the
-workspace's current `cdylib` targets from Cargo metadata and packages the
-current level and character components beside the native executable,
-preventing removed or stale WASM artifacts from leaking into a distribution.
+workspace's current `cdylib` targets and validated distribution groups from
+Cargo metadata. It produces the executable with `core/menu.wasm`,
+`core/will.wasm`, and `levels/level_one.wasm`, preventing removed, stale, or
+ungrouped artifacts from leaking into a distribution.

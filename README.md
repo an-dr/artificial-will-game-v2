@@ -28,7 +28,7 @@ boundaries and [AGENTS.md](AGENTS.md) for the AI-agent workflow this repo uses
 - `build.rs` — builds the `extensions/` workspace as part of `cargo build`,
   so there's no separate manual step for day-to-day iteration.
 - `extensions/` — a separate Cargo workspace (different target: `wasm32-
-  wasip2`): independent level and character WASM components sharing one
+  wasip2`): independent menu, level, and character WASM components sharing one
   `target/` so every extension's `.wasm` lands in one predictable directory.
 - `xtask/` — a small Rust program (not a shell script) that assembles a
   self-contained `dist/`: run via `cargo xtask dist` (aliased in
@@ -64,6 +64,9 @@ directories next to the binary instead, and that layout is checked first.
 
 ## Controls
 
+- Use the mouse or Tab/Enter to navigate menus. Enter opens level selection
+  from the start screen.
+- Press Escape during play to pause; press it again to resume.
 - Move with WASD or the arrow keys at 160 pixels per second on each axis.
 - Press Space to play the facing-dependent attack animation once.
 
@@ -76,8 +79,8 @@ right-facing side sheet is mirrored.
 `cargo run` is enough for day-to-day iteration — it never needs `dist/`.
 Use `cargo xtask dist` when you actually need a standalone folder: handing
 a build to someone else, or verifying the shipped-layout path resolution
-itself (`core/` and `levels/` next to the exe, not the dev-tree fallback) actually
-works, rather than trusting the dev-tree fallback path:
+itself (`core/` and `levels/` next to the exe, not the dev-tree fallback)
+actually works, rather than trusting the dev-tree fallback path:
 
 ```sh
 cargo xtask dist
@@ -86,5 +89,6 @@ cargo xtask dist
 A real Rust program (`xtask/`, not a script) that builds `game` and every
 current extension target, then assembles `dist/artificial-will(.exe)`,
 `dist/core/*.wasm`, and `dist/levels/*.wasm` in one command — copy `dist/`
-anywhere and run it as-is. This replaces manually rebuilding bones as an app and copying
-`.wasm` files into some folder by hand every time you want to test that.
+anywhere and run it as-is. The current contents are `core/menu.wasm`,
+`core/will.wasm`, and `levels/level_one.wasm`. This replaces manually
+rebuilding bones as an app and copying `.wasm` files into place.
