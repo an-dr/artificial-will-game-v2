@@ -21,9 +21,14 @@ fn run() -> Result<(), String> {
     runner::Engine::new()
         .window("Artificial Will", 800, 600)
         .extensions_dir(paths::extensions_dir())
+        .startup_extension("menu")
+        .extension_controller("menu")
         .renderer()
         .ui()
         .module(game_core::GameCore::new())
         .run()
         .map_err(|err| err.to_string())
 }
+
+#[cfg(test)]
+mod tests;

@@ -23,3 +23,7 @@ path = "src/main.rs"
 [dependencies]
 runner = { path = "vendor/bones/core/runner" }
 game-core = { path = "vendor/bones/core/game-core" }
+
+[dev-dependencies]
+bones-messages = { path = "vendor/bones/shared/bones-messages" }
+bus = { path = "vendor/bones/core/bus" }

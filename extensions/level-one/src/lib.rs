@@ -90,7 +90,11 @@ fn configure_camera() {
 struct Component;
 
 impl Guest for Component {
-    fn shutdown() {}
+    fn shutdown() {
+        for entity_id in 2..=4 {
+            publish_entity_op(EntityOp::Despawn { entity_id });
+        }
+    }
 
     fn init() {
         load_level_assets();
@@ -106,4 +110,5 @@ impl Guest for Component {
     }
 }
 
+#[cfg(not(test))]
 export!(Component);
