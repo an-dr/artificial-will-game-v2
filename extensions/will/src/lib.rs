@@ -58,6 +58,8 @@ fn handle_key_up(key: &str) {
 struct Component;
 
 impl Guest for Component {
+    fn shutdown() {}
+
     fn init() {
         subscribe(KeyDown::TOPIC);
         subscribe(KeyUp::TOPIC);

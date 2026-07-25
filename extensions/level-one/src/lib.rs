@@ -90,6 +90,8 @@ fn configure_camera() {
 struct Component;
 
 impl Guest for Component {
+    fn shutdown() {}
+
     fn init() {
         load_level_assets();
         spawn_level_entities();
