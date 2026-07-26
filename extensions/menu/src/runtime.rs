@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use bones_messages::extension_control::{Load, Unload};
 use bones_messages::game_core::{EntityOp, EntityOpMessage};
-use bones_messages::gfx::SetDisplay;
+use bones_messages::gfx::{SetDisplay, TextAlign};
 use bones_messages::input::{KeyDown, MouseDown, MouseMove};
 use bones_messages::persistence::{Save, ENDPOINT as PERSISTENCE};
 use bones_messages::renderer::DisplayChanged;
@@ -218,9 +218,17 @@ fn draw_text(text: &str, x: i32, y: i32, size: u16, color: (u8, u8, u8, u8)) {
     DrawCommand::text(text, x, y, size, color, MENU_LAYER).publish_with(publish);
 }
 
-fn centered_text_x(text: &str, size: u16) -> i32 {
-    let estimated_width = text.chars().count() as i32 * i32::from(size) * 3 / 5;
-    (SCREEN_WIDTH as i32 - estimated_width) / 2
+fn draw_centered_text(text: &str, y: i32, size: u16, color: (u8, u8, u8, u8)) {
+    DrawCommand::text_aligned(
+        text,
+        SCREEN_WIDTH as i32 / 2,
+        y,
+        size,
+        color,
+        MENU_LAYER,
+        TextAlign::Center,
+    )
+    .publish_with(publish);
 }
 
 fn publish_game_over() {
@@ -232,16 +240,14 @@ fn publish_game_over() {
         true,
         GAME_OVER_BACKGROUND,
     );
-    draw_text(
+    draw_centered_text(
         "GAME OVER",
-        centered_text_x("GAME OVER", GAME_OVER_TITLE_SIZE),
         210,
         GAME_OVER_TITLE_SIZE,
         GAME_OVER_TITLE_COLOR,
     );
-    draw_text(
+    draw_centered_text(
         GAME_OVER_PROMPT,
-        centered_text_x(GAME_OVER_PROMPT, GAME_OVER_PROMPT_SIZE),
         344,
         GAME_OVER_PROMPT_SIZE,
         GAME_OVER_PROMPT_COLOR,

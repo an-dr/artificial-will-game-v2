@@ -535,6 +535,8 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
                         && text.color.0 == 255
                         && text.color.1 < 80
                         && text.color.2 < 80
+                        && text.x == 400
+                        && text.align == bones_messages::gfx::TextAlign::Center
                 })
         }));
         assert!(events.iter().any(|event| {
@@ -545,8 +547,12 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
         assert!(events.iter().any(|event| {
             event.sender == "menu"
                 && event.topic == DrawText::TOPIC
-                && DrawText::decode(&event.payload)
-                    .is_ok_and(|text| text.screen_space && text.text == "PRESS ENTER TO MAIN MENU")
+                && DrawText::decode(&event.payload).is_ok_and(|text| {
+                    text.screen_space
+                        && text.text == "PRESS ENTER TO MAIN MENU"
+                        && text.x == 400
+                        && text.align == bones_messages::gfx::TextAlign::Center
+                })
         }));
         assert!(events.iter().any(|event| {
             event.sender == "menu"
