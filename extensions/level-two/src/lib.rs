@@ -11,8 +11,8 @@ use std::cell::RefCell;
 
 use bones::core::host_api::{log, publish, subscribe, Level};
 use bones_messages::game_core::{
-    BodyKind, Collision, EntityOp, EntityOpMessage, EntityTransform, LoadTilemap, PhysicsWorlds,
-    Shape, Sprite, SpritePresentation, TilesetImage,
+    BodyKind, EntityOp, EntityOpMessage, EntityTransform, LoadTilemap, PhysicsWorlds, Shape,
+    Sprite, SpritePresentation, TilesetImage,
 };
 use bones_messages::gfx::LoadSprite;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
@@ -368,7 +368,6 @@ impl Guest for Component {
             *field.borrow_mut() = SlimeField::new(SLIME_ID_START, SLIMES, WILL_SPAWN)
         });
         subscribe(EntityTransform::TOPIC);
-        subscribe(Collision::TOPIC);
         subscribe(PauseChanged::TOPIC);
         subscribe(AttackRequested::TOPIC);
         subscribe("core/tick");
@@ -397,6 +396,13 @@ impl Guest for Component {
             for visual in tick.visuals {
                 publish_slime_visual(visual);
             }
+            for damage in tick.damages {
+                publish_message(PlayerDamaged {
+                    amount: damage.amount,
+                    source_x: damage.source_x,
+                    source_y: damage.source_y,
+                });
+            }
             for entity_id in tick.despawns {
                 publish_entity_op(EntityOp::Despawn { entity_id });
             }
@@ -414,22 +420,6 @@ impl Guest for Component {
                             transform.y,
                         )
                     });
-                }
-            }
-            Collision::TOPIC if sender == "game-core" => {
-                if let Ok(collision) = Collision::decode(&payload) {
-                    let contact =
-                        SLIME_FIELD.with(|field| field.borrow_mut().will_contact(collision));
-                    if let Some(contact) = contact {
-                        publish_message(PlayerDamaged {
-                            amount: 1,
-                            source_x: contact.source_x,
-                            source_y: contact.source_y,
-                        });
-                        if let Some(visual) = contact.visual {
-                            publish_slime_visual(visual);
-                        }
-                    }
                 }
             }
             PauseChanged::TOPIC if sender == "menu" => {

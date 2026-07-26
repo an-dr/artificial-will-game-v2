@@ -18,7 +18,7 @@ fn nearby_slimes_chase_at_constant_speed_and_distant_slimes_stop() {
 #[test]
 fn authoritative_updates_change_both_pursuer_and_target_positions() {
     let mut field = SlimeField::new(200, SPAWNS, (500.0, 500.0));
-    field.update_transform(WILL_ENTITY_ID, 160.0, 100.0);
+    field.update_transform(WILL_ENTITY_ID, 200.0, 100.0);
     field.update_transform(200, 120.0, 100.0);
     let velocity = field.velocities()[0];
     assert_eq!((velocity.vx, velocity.vy), (SLIME_SPEED, 0.0));
@@ -35,34 +35,6 @@ fn malformed_updates_are_ignored_and_pause_stops_every_slime() {
         .velocities()
         .iter()
         .all(|velocity| (velocity.vx, velocity.vy) == (0.0, 0.0)));
-}
-
-#[test]
-fn will_contact_accepts_either_collision_order_and_only_slimes() {
-    let mut field = SlimeField::new(200, SPAWNS, (0.0, 0.0));
-    let first = field
-        .will_contact(Collision {
-            entity_id_a: WILL_ENTITY_ID,
-            entity_id_b: 200,
-        })
-        .unwrap();
-    assert_eq!((first.source_x, first.source_y), (100.0, 100.0));
-    assert_eq!(first.visual.unwrap().animation, SlimeAnimation::Attack);
-
-    let second = field
-        .will_contact(Collision {
-            entity_id_a: 201,
-            entity_id_b: WILL_ENTITY_ID,
-        })
-        .unwrap();
-    assert_eq!((second.source_x, second.source_y), (500.0, 500.0));
-    assert_eq!(
-        field.will_contact(Collision {
-            entity_id_a: WILL_ENTITY_ID,
-            entity_id_b: 100,
-        }),
-        None
-    );
 }
 
 fn attack(sequence: u32) -> AttackRequested {
@@ -104,13 +76,7 @@ fn defeated_slime_stops_moving_and_cannot_damage_will() {
     field.attack(attack(2));
 
     assert!(field.velocities().is_empty());
-    assert_eq!(
-        field.will_contact(Collision {
-            entity_id_a: WILL_ENTITY_ID,
-            entity_id_b: 200,
-        }),
-        None
-    );
+    assert!(field.tick(10.0).damages.is_empty());
 }
 
 #[test]
@@ -158,4 +124,66 @@ fn pause_freezes_reaction_timers() {
         field.tick(SLIME_HURT_DURATION).visuals[0].animation,
         SlimeAnimation::Walk
     );
+}
+
+#[test]
+fn close_range_starts_a_telegraphed_attack_without_contact_damage() {
+    let mut field = SlimeField::new(200, &SPAWNS[..1], (100.0, 100.0));
+    let started = field.tick(0.016);
+    assert!(started.damages.is_empty());
+    assert_eq!(started.visuals[0].animation, SlimeAnimation::Attack);
+    assert_eq!(
+        (started.velocities[0].vx, started.velocities[0].vy),
+        (0.0, 0.0)
+    );
+
+    assert!(field.tick(0.40).damages.is_empty());
+    let impact = field.tick(0.05);
+    assert_eq!(
+        impact.damages,
+        vec![SlimeDamage {
+            amount: 1,
+            source_x: 100.0,
+            source_y: 100.0,
+        }]
+    );
+    assert!(field.tick(0.10).damages.is_empty());
+}
+
+#[test]
+fn leaving_attack_range_during_windup_avoids_the_strike() {
+    let mut field = SlimeField::new(200, &SPAWNS[..1], (150.0, 100.0));
+    field.tick(0.0);
+    field.update_transform(WILL_ENTITY_ID, 300.0, 100.0);
+    assert!(field.tick(0.50).damages.is_empty());
+}
+
+#[test]
+fn completed_attack_has_a_cooldown_before_another_windup() {
+    let mut field = SlimeField::new(200, &SPAWNS[..1], (150.0, 100.0));
+    field.tick(0.0);
+    field.tick(SLIME_ATTACK_DURATIONS[0]);
+
+    let cooling_down = field.tick(SLIME_ATTACK_COOLDOWN * 0.9);
+    assert!(cooling_down.damages.is_empty());
+    assert!(cooling_down.visuals.is_empty());
+    assert_eq!(
+        (cooling_down.velocities[0].vx, cooling_down.velocities[0].vy),
+        (0.0, 0.0)
+    );
+
+    let ready = field.tick(SLIME_ATTACK_COOLDOWN);
+    assert_eq!(ready.visuals[0].animation, SlimeAnimation::Attack);
+    assert!(ready.damages.is_empty());
+}
+
+#[test]
+fn being_hurt_interrupts_a_pending_enemy_strike() {
+    let mut field = SlimeField::new(200, &SPAWNS[..1], (150.0, 100.0));
+    field.tick(0.0);
+    assert_eq!(
+        field.attack(attack(1)).unwrap().visual.animation,
+        SlimeAnimation::Hurt
+    );
+    assert!(field.tick(SLIME_HURT_DURATION).damages.is_empty());
 }
