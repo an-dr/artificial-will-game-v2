@@ -15,6 +15,7 @@ pub const PAUSE_SETTINGS: u32 = 21;
 pub const PAUSE_LEVELS: u32 = 22;
 pub const MAIN_MENU: u32 = 23;
 pub const PAUSE_QUIT: u32 = 24;
+pub const GAME_OVER_MAIN_MENU: u32 = 25;
 pub const FULLSCREEN: u32 = 30;
 pub const SETTINGS_BACK: u32 = 31;
 pub const RESOLUTION_BASE: u32 = 100;
@@ -63,6 +64,7 @@ pub fn build_layout(
             Button::new(MAIN_MENU, "Main Menu"),
             Button::new(PAUSE_QUIT, "Quit"),
         ],
+        Screen::GameOver => vec![Button::new(GAME_OVER_MAIN_MENU, "Press Enter to Main Menu")],
         Screen::Settings => {
             let mut buttons = vec![Button::new(
                 FULLSCREEN,

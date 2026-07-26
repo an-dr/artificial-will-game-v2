@@ -9,6 +9,7 @@ fn every_menu_screen_builds_centered_game_buttons() {
         (Screen::Start, 3),
         (Screen::LevelSelection, 3),
         (Screen::Pause, 5),
+        (Screen::GameOver, 1),
         (Screen::Settings, 4),
     ] {
         let layout = build_layout(screen, preferences, &resolutions);

@@ -108,19 +108,19 @@ fn returning_home_stops_only_an_active_session() {
 }
 
 #[test]
-fn defeat_restarts_the_exact_active_level_and_returns_to_gameplay() {
+fn defeat_opens_game_over_until_returning_home_stops_the_session() {
     let mut state = MenuState::default();
-    assert_eq!(state.restart_active_level(), None);
+    assert!(!state.show_game_over());
 
     state.select_level(Level::Two);
-    state.pause();
-    assert_eq!(
-        state.restart_active_level(),
-        Some(SessionRequest::Replace {
-            previous: Some(Level::Two),
-            next: Level::Two,
-        })
-    );
-    assert_eq!(state.screen(), Screen::Gameplay);
+    assert!(state.show_game_over());
+    assert_eq!(state.screen(), Screen::GameOver);
     assert_eq!(state.active_level(), Some(Level::Two));
+    assert!(!state.show_game_over());
+    assert_eq!(
+        state.return_to_start(),
+        Some(SessionRequest::Stop(Level::Two))
+    );
+    assert_eq!(state.screen(), Screen::Start);
+    assert_eq!(state.active_level(), None);
 }

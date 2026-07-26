@@ -16,9 +16,9 @@ use crate::bones::core::host_api::{
 };
 use crate::display_preferences::DisplayPreferences;
 use crate::game_ui::{
-    build_layout, canvas, FULLSCREEN, LEVEL_BACK, LEVEL_ONE, LEVEL_TWO, MAIN_MENU, PAUSE_LEVELS,
-    PAUSE_QUIT, PAUSE_SETTINGS, QUIT, RESOLUTION_BASE, RESUME, SETTINGS_BACK, START,
-    START_SETTINGS,
+    build_layout, canvas, FULLSCREEN, GAME_OVER_MAIN_MENU, LEVEL_BACK, LEVEL_ONE, LEVEL_TWO,
+    MAIN_MENU, PAUSE_LEVELS, PAUSE_QUIT, PAUSE_SETTINGS, QUIT, RESOLUTION_BASE, RESUME,
+    SCREEN_HEIGHT, SCREEN_WIDTH, SETTINGS_BACK, START, START_SETTINGS,
 };
 use crate::level::Level;
 use crate::menu_state::MenuState;
@@ -27,6 +27,7 @@ use crate::screen::Screen;
 use crate::session_request::SessionRequest;
 
 const MENU_LAYER: u8 = 250;
+const BACKDROP_COLOR: (u8, u8, u8, u8) = (5, 8, 15, 255);
 const PANEL_COLOR: (u8, u8, u8, u8) = (14, 18, 30, 255);
 const BORDER_COLOR: (u8, u8, u8, u8) = (85, 190, 220, 255);
 const TITLE_COLOR: (u8, u8, u8, u8) = (235, 248, 255, 255);
@@ -168,11 +169,12 @@ pub fn shutdown() {
     }
 }
 
-fn read_ui_state() -> (Screen, DisplayPreferences, Vec<(u32, u32)>, Selection) {
+fn read_ui_state() -> (Screen, bool, DisplayPreferences, Vec<(u32, u32)>, Selection) {
     STATE.with(|state| {
         let state = state.borrow();
         (
             state.menu.screen(),
+            state.menu.active_level().is_some(),
             state.preferences,
             state.resolutions.clone(),
             state.selection,
@@ -185,6 +187,7 @@ fn title_for(screen: Screen) -> (&'static str, &'static str) {
         Screen::Start => ("ARTIFICIAL WILL", "A machine with a will of its own"),
         Screen::LevelSelection => ("SELECT LEVEL", "Choose where Will wakes"),
         Screen::Pause => ("SYSTEM PAUSED", "Escape resumes the simulation"),
+        Screen::GameOver => ("GAME OVER", "Will has run out of lives"),
         Screen::Settings => ("DISPLAY SETTINGS", "Changes apply immediately"),
         Screen::Gameplay => ("", ""),
     }
@@ -210,13 +213,16 @@ fn draw_text(text: &str, x: i32, y: i32, size: u16, color: (u8, u8, u8, u8)) {
 }
 
 pub fn publish_ui() {
-    let (screen, preferences, resolutions, selection) = read_ui_state();
+    let (screen, has_active_session, preferences, resolutions, selection) = read_ui_state();
     if screen == Screen::Gameplay {
         // The renderer retains each sender's last completed draw batch.
         // Replace the prior menu with one invisible command so gameplay
         // cannot inherit the level-selection or pause overlay.
         draw_rect(0, 0, 1, 1, true, (0, 0, 0, 0));
         return;
+    }
+    if !has_active_session {
+        draw_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, true, BACKDROP_COLOR);
     }
     let layout = build_layout(screen, preferences, &resolutions);
 
@@ -308,7 +314,7 @@ fn activate_button(id: u32) {
                 state.menu.open_level_selection();
                 reset_selection(&mut state);
             }
-            MAIN_MENU => {
+            MAIN_MENU | GAME_OVER_MAIN_MENU => {
                 let request = state.menu.return_to_start();
                 reset_selection(&mut state);
                 if let Some(request) = request {
@@ -423,11 +429,11 @@ fn handle_pointer_down(button: u8, x: f32, y: f32) {
     }
 }
 
-fn defeat_request(menu: &mut MenuState, sender: &str, payload: &[u8]) -> Option<SessionRequest> {
+fn accept_defeat(menu: &mut MenuState, sender: &str, payload: &[u8]) -> bool {
     if sender != "will" || PlayerDefeated::decode(payload).is_err() {
-        return None;
+        return false;
     }
-    menu.restart_active_level()
+    menu.show_game_over()
 }
 
 pub fn handle_message(topic: &str, sender: &str, payload: &[u8]) {
@@ -454,10 +460,16 @@ pub fn handle_message(topic: &str, sender: &str, payload: &[u8]) {
             }
         }
         PlayerDefeated::TOPIC => {
-            let request =
-                STATE.with(|state| defeat_request(&mut state.borrow_mut().menu, sender, payload));
-            if let Some(request) = request {
-                apply_session_request(request);
+            let accepted = STATE.with(|state| {
+                let mut state = state.borrow_mut();
+                let accepted = accept_defeat(&mut state.menu, sender, payload);
+                if accepted {
+                    reset_selection(&mut state);
+                }
+                accepted
+            });
+            if accepted {
+                set_paused(true);
             }
         }
         _ => {}
@@ -484,6 +496,7 @@ mod tests {
             Screen::Start,
             Screen::LevelSelection,
             Screen::Pause,
+            Screen::GameOver,
             Screen::Settings,
         ] {
             assert!(!title_for(screen).0.is_empty());
@@ -492,18 +505,14 @@ mod tests {
     }
 
     #[test]
-    fn only_a_valid_defeat_from_will_restarts_the_active_level() {
+    fn only_a_valid_defeat_from_will_opens_game_over() {
         let mut menu = MenuState::default();
         menu.select_level(Level::One);
 
-        assert_eq!(defeat_request(&mut menu, "rogue", &[]), None);
-        assert_eq!(defeat_request(&mut menu, "will", &[0]), None);
-        assert_eq!(
-            defeat_request(&mut menu, "will", &PlayerDefeated.encode()),
-            Some(SessionRequest::Replace {
-                previous: Some(Level::One),
-                next: Level::One,
-            })
-        );
+        assert!(!accept_defeat(&mut menu, "rogue", &[]));
+        assert!(!accept_defeat(&mut menu, "will", &[0]));
+        assert!(accept_defeat(&mut menu, "will", &PlayerDefeated.encode()));
+        assert_eq!(menu.screen(), Screen::GameOver);
+        assert_eq!(menu.active_level(), Some(Level::One));
     }
 }

@@ -28,6 +28,8 @@ stateDiagram-v2
     LevelSelection --> Gameplay: Level One
     LevelSelection --> Gameplay: Level Two
     Gameplay --> Pause: Escape
+    Gameplay --> GameOver: Last life lost
+    GameOver --> Start: Enter
     Pause --> Gameplay: Resume
     Pause --> Settings
     Pause --> LevelSelection
@@ -37,7 +39,8 @@ stateDiagram-v2
 ```
 
 Start provides Start, Settings, and Quit. Pause provides Resume, Settings,
-Level Selection, Main Menu, and Quit. The menu draws game-native screen-space
+Level Selection, Main Menu, and Quit. Game Over pauses the finished session and
+prompts for Enter to return to Start. The menu draws game-native screen-space
 graphics through the renderer and handles mouse hit-testing plus arrow/WASD
 selection and Enter/Space activation directly from the input bus.
 
@@ -48,6 +51,10 @@ unpauses `game-core`. Changing levels pauses simulation, unloads `will` and the
 current level, resets the native world, and loads the new pair. Returning to
 the start screen performs the same unload and reset without loading a
 replacement.
+
+Defeat pauses the current session without unloading it so the game-over screen
+has a stable world behind it. Enter returns to Start through the normal stop
+transition, unloading Will and the active level before resetting the world.
 
 `shutdown` lets each gameplay extension publish cleanup for the resources and
 entities it created. The world reset is a defensive session boundary, not a

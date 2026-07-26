@@ -78,9 +78,10 @@ mechanics come from bones `game-ui`; Artificial Will retains its colors,
 labels, and navigation state. It queries display modes from the native host,
 applies resolution and fullscreen changes through typed renderer messages,
 and stores a strict versioned preference record through bones persistence.
-It also consumes Will's authenticated defeat event and expresses restart as
-the same transactional level-replacement request used by manual switching:
-pause, unload, reset game-core, reload the same level and Will, then resume.
+It also consumes Will's authenticated defeat event, pauses the world behind a
+game-over screen, and waits for Enter. Returning to the main screen then uses
+the normal transactional session teardown: pause, unload Will and the level,
+and reset game-core.
 
 ## Fidelity to v1
 

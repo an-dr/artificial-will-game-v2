@@ -87,7 +87,8 @@ their awareness radius, stop before contact, and deal damage only when their
 visible attack animation reaches its strike frame. The wind-up can be escaped
 or interrupted; touching a slime by itself is harmless. Slimes take two hits
 and award one XP on defeat. Every three XP increases Will's displayed level.
-Losing the last life transactionally restarts the current level.
+Losing the last life pauses the world on a game-over screen; Enter tears down
+the finished session and returns to the main screen.
 
 ## Testing a self-contained build
 

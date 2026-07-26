@@ -9,6 +9,8 @@ pub enum Screen {
     Gameplay,
     /// In-session pause menu.
     Pause,
+    /// Defeat overlay shown until the player returns to the title screen.
+    GameOver,
     /// Display preferences opened from start or pause.
     Settings,
 }

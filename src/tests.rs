@@ -6,8 +6,8 @@ use bones_messages::input::KeyDown;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use bus::Envelope;
 use game_messages::{
-    AttackDirection, AttackRequested, HitConfirmed, PlayerDamaged, PlayerDefeated, PlayerStats,
-    RewardGranted,
+    AttackDirection, AttackRequested, HitConfirmed, PauseChanged, PlayerDamaged, PlayerDefeated,
+    PlayerStats, RewardGranted,
 };
 
 struct SavesDir(std::path::PathBuf);
@@ -228,7 +228,7 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
 }
 
 #[test]
-fn combat_rewards_hud_and_defeat_restart_flow_across_extensions() {
+fn combat_rewards_hud_and_game_over_flow_across_extensions() {
     let saves = SavesDir::create("combat");
     let extensions = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("extensions/target/wasm32-wasip2/release");
@@ -506,12 +506,29 @@ fn combat_rewards_hud_and_defeat_restart_flow_across_extensions() {
         assert_eq!(
             stats.last(),
             Some(&PlayerStats {
-                lives: 3,
-                experience: 0,
+                lives: 0,
+                experience: 1,
                 level: 1,
                 coins: 0,
             })
         );
+        assert!(events.iter().any(|event| {
+            event.sender == "menu"
+                && event.topic == DrawText::TOPIC
+                && DrawText::decode(&event.payload)
+                    .is_ok_and(|text| text.screen_space && text.text == "GAME OVER")
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "menu"
+                && event.topic == PauseChanged::TOPIC
+                && PauseChanged::decode(&event.payload).is_ok_and(|pause| pause.paused)
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "menu"
+                && event.topic == DrawText::TOPIC
+                && DrawText::decode(&event.payload)
+                    .is_ok_and(|text| text.screen_space && text.text == "Press Enter to Main Menu")
+        }));
     }
     assert!(built.supervisor.registry.call("test", "will", &[]).is_ok());
     assert!(built
@@ -519,6 +536,31 @@ fn combat_rewards_hud_and_defeat_restart_flow_across_extensions() {
         .registry
         .call("test", "level_two", &[])
         .is_ok());
+
+    captured.lock().unwrap().clear();
+    press(&mut built, "Return");
+    pump(&mut built, 5);
+    assert!(built.supervisor.registry.call("test", "will", &[]).is_err());
+    assert!(built
+        .supervisor
+        .registry
+        .call("test", "level_two", &[])
+        .is_err());
+    assert!(captured.lock().unwrap().iter().any(|event| {
+        event.sender == "menu"
+            && event.topic == DrawText::TOPIC
+            && DrawText::decode(&event.payload)
+                .is_ok_and(|text| text.screen_space && text.text == "ARTIFICIAL WILL")
+    }));
+    assert!(captured.lock().unwrap().iter().any(|event| {
+        event.sender == "menu"
+            && event.topic == DrawRect::TOPIC
+            && DrawRect::decode(&event.payload).is_ok_and(|rectangle| {
+                rectangle.screen_space
+                    && (rectangle.x, rectangle.y, rectangle.w, rectangle.h) == (0, 0, 800, 600)
+                    && rectangle.color.3 == 255
+            })
+    }));
 }
 
 #[test]
