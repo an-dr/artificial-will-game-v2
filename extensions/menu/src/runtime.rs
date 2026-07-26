@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use bones_messages::extension_control::{Load, Unload};
 use bones_messages::game_core::{EntityOp, EntityOpMessage};
-use bones_messages::gfx::{SetDisplay, TextAlign};
+use bones_messages::gfx::{ClearDrawBatch, SetDisplay, TextAlign};
 use bones_messages::input::{KeyDown, MouseDown, MouseMove};
 use bones_messages::persistence::{Save, ENDPOINT as PERSISTENCE};
 use bones_messages::renderer::DisplayChanged;
@@ -257,10 +257,7 @@ fn publish_game_over() {
 pub fn publish_ui() {
     let (screen, has_active_session, preferences, resolutions, selection) = read_ui_state();
     if screen == Screen::Gameplay {
-        // The renderer retains each sender's last completed draw batch.
-        // Replace the prior menu with one invisible command so gameplay
-        // cannot inherit the level-selection or pause overlay.
-        draw_rect(0, 0, 1, 1, true, (0, 0, 0, 0));
+        publish(ClearDrawBatch::TOPIC, &ClearDrawBatch.encode());
         return;
     }
     if screen == Screen::GameOver {

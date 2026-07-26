@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use bones_messages::game_core::{Collision, EntityOp, EntityOpMessage};
-use bones_messages::gfx::{DrawRect, DrawSprite, DrawText};
+use bones_messages::gfx::{ClearDrawBatch, DrawRect, DrawSprite, DrawText};
 use bones_messages::input::KeyDown;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use bus::Envelope;
@@ -259,12 +259,8 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
     pump(&mut built, 10);
     assert!(captured.lock().unwrap().iter().any(|event| {
         event.sender == "menu"
-            && event.topic == DrawRect::TOPIC
-            && DrawRect::decode(&event.payload).is_ok_and(|rectangle| {
-                rectangle.screen_space
-                    && (rectangle.x, rectangle.y, rectangle.w, rectangle.h) == (0, 0, 1, 1)
-                    && rectangle.color.3 == 0
-            })
+            && event.topic == ClearDrawBatch::TOPIC
+            && ClearDrawBatch::decode(&event.payload).is_ok()
     }));
     captured.lock().unwrap().clear();
 
