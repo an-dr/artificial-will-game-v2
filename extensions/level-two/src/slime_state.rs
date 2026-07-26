@@ -10,17 +10,29 @@ pub const SLIME_COLLIDER_HALF_W: f32 = 18.0;
 pub const SLIME_COLLIDER_HALF_H: f32 = 14.0;
 pub const SLIME_HEALTH: u8 = 2;
 pub const SLIME_EXPERIENCE: u32 = 1;
+pub const SLIME_ATTACK_DURATIONS: [f32; 3] = [0.80, 0.88, 0.72];
+pub const SLIME_HURT_DURATION: f32 = 0.40;
+pub const SLIME_DEATH_DURATION: f32 = 0.80;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlimeAnimation {
+    Idle,
+    Walk,
+    Attack,
+    Hurt,
+    Death,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SlimeSpawn {
-    pub sprite_id: u32,
+    pub sprite_set: usize,
     pub x: f32,
     pub y: f32,
 }
 
 impl SlimeSpawn {
-    pub const fn new(sprite_id: u32, x: f32, y: f32) -> Self {
-        Self { sprite_id, x, y }
+    pub const fn new(sprite_set: usize, x: f32, y: f32) -> Self {
+        Self { sprite_set, x, y }
     }
 }
 
@@ -30,6 +42,9 @@ struct SlimeState {
     x: f32,
     y: f32,
     health: u8,
+    sprite_set: usize,
+    animation: SlimeAnimation,
+    reaction_remaining: f32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -44,6 +59,30 @@ pub struct SlimeHit {
     pub hit: HitConfirmed,
     pub defeated: bool,
     pub reward: Option<RewardGranted>,
+    pub visual: SlimeVisual,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SlimeVisual {
+    pub entity_id: u32,
+    pub sprite_set: usize,
+    pub animation: SlimeAnimation,
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SlimeContact {
+    pub source_x: f32,
+    pub source_y: f32,
+    pub visual: Option<SlimeVisual>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SlimeTick {
+    pub velocities: Vec<SlimeVelocity>,
+    pub visuals: Vec<SlimeVisual>,
+    pub despawns: Vec<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,6 +105,9 @@ impl SlimeField {
                     x: spawn.x,
                     y: spawn.y,
                     health: SLIME_HEALTH,
+                    sprite_set: spawn.sprite_set,
+                    animation: SlimeAnimation::Idle,
+                    reaction_remaining: 0.0,
                 })
                 .collect(),
             will_x: will_spawn.0,
@@ -98,22 +140,129 @@ impl SlimeField {
         }
     }
 
+    fn pursuit_velocity(will_x: f32, will_y: f32, slime: &SlimeState) -> (f32, f32) {
+        let dx = will_x - slime.x;
+        let dy = will_y - slime.y;
+        let distance_squared = dx * dx + dy * dy;
+        if distance_squared <= f32::EPSILON
+            || distance_squared > SLIME_AWARENESS_RADIUS * SLIME_AWARENESS_RADIUS
+        {
+            (0.0, 0.0)
+        } else {
+            let scale = SLIME_SPEED / distance_squared.sqrt();
+            (dx * scale, dy * scale)
+        }
+    }
+
+    pub fn tick(&mut self, dt: f32) -> SlimeTick {
+        let mut tick = SlimeTick {
+            velocities: Vec::new(),
+            visuals: Vec::new(),
+            despawns: Vec::new(),
+        };
+        let dt = dt.max(0.0);
+        for slime in &mut self.slimes {
+            if slime.animation == SlimeAnimation::Death && slime.reaction_remaining <= 0.0 {
+                continue;
+            }
+            if self.paused {
+                if slime.health > 0 {
+                    tick.velocities.push(SlimeVelocity {
+                        entity_id: slime.entity_id,
+                        vx: 0.0,
+                        vy: 0.0,
+                    });
+                }
+                continue;
+            }
+
+            if matches!(
+                slime.animation,
+                SlimeAnimation::Attack | SlimeAnimation::Hurt | SlimeAnimation::Death
+            ) {
+                slime.reaction_remaining = (slime.reaction_remaining - dt).max(0.0);
+                if slime.reaction_remaining > 0.0 {
+                    tick.velocities.push(SlimeVelocity {
+                        entity_id: slime.entity_id,
+                        vx: 0.0,
+                        vy: 0.0,
+                    });
+                    continue;
+                }
+                if slime.animation == SlimeAnimation::Death {
+                    tick.despawns.push(slime.entity_id);
+                    continue;
+                }
+            }
+
+            let (vx, vy) = Self::pursuit_velocity(self.will_x, self.will_y, slime);
+            let desired = if vx == 0.0 && vy == 0.0 {
+                SlimeAnimation::Idle
+            } else {
+                SlimeAnimation::Walk
+            };
+            if slime.animation != desired {
+                slime.animation = desired;
+                tick.visuals.push(Self::visual(slime));
+            }
+            tick.velocities.push(SlimeVelocity {
+                entity_id: slime.entity_id,
+                vx,
+                vy,
+            });
+        }
+        tick
+    }
+
+    pub fn will_contact(&mut self, collision: Collision) -> Option<SlimeContact> {
+        let other = if collision.entity_id_a == WILL_ENTITY_ID {
+            collision.entity_id_b
+        } else if collision.entity_id_b == WILL_ENTITY_ID {
+            collision.entity_id_a
+        } else {
+            return None;
+        };
+        let slime = self
+            .slimes
+            .iter_mut()
+            .find(|slime| slime.entity_id == other && slime.health > 0)?;
+        let visual =
+            matches!(slime.animation, SlimeAnimation::Idle | SlimeAnimation::Walk).then(|| {
+                slime.animation = SlimeAnimation::Attack;
+                slime.reaction_remaining = SLIME_ATTACK_DURATIONS[slime.sprite_set];
+                Self::visual(slime)
+            });
+        Some(SlimeContact {
+            source_x: slime.x,
+            source_y: slime.y,
+            visual,
+        })
+    }
+
+    fn visual(slime: &SlimeState) -> SlimeVisual {
+        SlimeVisual {
+            entity_id: slime.entity_id,
+            sprite_set: slime.sprite_set,
+            animation: slime.animation,
+            x: slime.x,
+            y: slime.y,
+        }
+    }
+
+    #[cfg(test)]
     pub fn velocities(&self) -> Vec<SlimeVelocity> {
         self.slimes
             .iter()
             .filter(|slime| slime.health > 0)
             .map(|slime| {
-                let dx = self.will_x - slime.x;
-                let dy = self.will_y - slime.y;
-                let distance_squared = dx * dx + dy * dy;
                 let (vx, vy) = if self.paused
-                    || distance_squared <= f32::EPSILON
-                    || distance_squared > SLIME_AWARENESS_RADIUS * SLIME_AWARENESS_RADIUS
-                {
+                    || matches!(
+                        slime.animation,
+                        SlimeAnimation::Attack | SlimeAnimation::Hurt
+                    ) {
                     (0.0, 0.0)
                 } else {
-                    let scale = SLIME_SPEED / distance_squared.sqrt();
-                    (dx * scale, dy * scale)
+                    Self::pursuit_velocity(self.will_x, self.will_y, slime)
                 };
                 SlimeVelocity {
                     entity_id: slime.entity_id,
@@ -122,19 +271,6 @@ impl SlimeField {
                 }
             })
             .collect()
-    }
-
-    pub fn is_will_contact(&self, collision: Collision) -> bool {
-        let other = if collision.entity_id_a == WILL_ENTITY_ID {
-            collision.entity_id_b
-        } else if collision.entity_id_b == WILL_ENTITY_ID {
-            collision.entity_id_a
-        } else {
-            return false;
-        };
-        self.slimes
-            .iter()
-            .any(|slime| slime.entity_id == other && slime.health > 0)
     }
 
     pub fn attack(&mut self, attack: AttackRequested) -> Option<SlimeHit> {
@@ -162,6 +298,16 @@ impl SlimeField {
             .find(|slime| slime.entity_id == target.entity_id)?;
         slime.health = slime.health.saturating_sub(1);
         let defeated = slime.health == 0;
+        slime.animation = if defeated {
+            SlimeAnimation::Death
+        } else {
+            SlimeAnimation::Hurt
+        };
+        slime.reaction_remaining = if defeated {
+            SLIME_DEATH_DURATION
+        } else {
+            SLIME_HURT_DURATION
+        };
         Some(SlimeHit {
             hit: HitConfirmed {
                 sequence: attack.sequence,
@@ -174,6 +320,7 @@ impl SlimeField {
                 experience: SLIME_EXPERIENCE,
                 coins: 0,
             }),
+            visual: Self::visual(slime),
         })
     }
 }

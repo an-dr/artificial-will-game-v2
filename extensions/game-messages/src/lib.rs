@@ -5,8 +5,8 @@ mod combat;
 use bones_messages::{DecodeError, DecodeMessage, EncodeMessage, Message, Reader, Writer};
 
 pub use combat::{
-    AttackDirection, AttackRequested, AttackTarget, HitConfirmed, PlayerDamaged, PlayerDefeated,
-    PlayerStats, RewardGranted, select_attack_target,
+    select_attack_target, AttackDirection, AttackRequested, AttackTarget, HitConfirmed,
+    PlayerDamaged, PlayerDefeated, PlayerStats, RewardGranted,
 };
 
 /// Stable entity id used by the Will extension.

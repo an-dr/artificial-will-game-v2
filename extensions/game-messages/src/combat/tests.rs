@@ -26,8 +26,13 @@ fn every_combat_message_round_trips() {
     let attack = attack(AttackDirection::Left);
     assert_eq!(AttackRequested::decode(&attack.encode()), Ok(attack));
 
-    let damage = PlayerDamaged { amount: 1 };
+    let damage = PlayerDamaged {
+        amount: 1,
+        source_x: 12.0,
+        source_y: 13.0,
+    };
     assert_eq!(PlayerDamaged::decode(&damage.encode()), Ok(damage));
+    assert_eq!(damage.source(), Some((12.0, 13.0)));
 
     let reward = RewardGranted {
         experience: 2,
@@ -52,6 +57,16 @@ fn every_combat_message_round_trips() {
         coins: 5,
     };
     assert_eq!(PlayerStats::decode(&stats.encode()), Ok(stats));
+}
+
+#[test]
+fn damage_rejects_non_finite_source_coordinates() {
+    let damage = PlayerDamaged {
+        amount: 1,
+        source_x: f32::NAN,
+        source_y: 13.0,
+    };
+    assert_eq!(damage.source(), None);
 }
 
 #[test]

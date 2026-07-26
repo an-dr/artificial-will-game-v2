@@ -41,6 +41,10 @@ impl Default for CombatState {
 }
 
 impl CombatState {
+    pub fn position(&self) -> (f32, f32) {
+        (self.position_x, self.position_y)
+    }
+
     pub fn tick(&mut self, dt: f32) {
         self.invulnerability_remaining = (self.invulnerability_remaining - dt.max(0.0)).max(0.0);
     }

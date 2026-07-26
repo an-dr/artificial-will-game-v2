@@ -7,6 +7,7 @@ wit_bindgen::generate!({
 
 mod character;
 mod combat_state;
+mod damage_reaction;
 mod held_keys;
 mod hud;
 mod impact;
@@ -20,6 +21,7 @@ use bones_messages::game_core::{EntityOp, EntityOpMessage, EntityTransform};
 use bones_messages::input::{KeyDown, KeyUp};
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use combat_state::{CombatState, DamageOutcome};
+use damage_reaction::DamageReaction;
 use game_messages::{
     HitConfirmed, PauseChanged, PlayerDamaged, PlayerDefeated, RewardGranted, SessionReset,
     WILL_ENTITY_ID,
@@ -32,6 +34,7 @@ thread_local! {
     static HELD_KEYS: RefCell<HeldKeys> = RefCell::new(HeldKeys::default());
     static PLAYER_STATE: RefCell<PlayerState> = RefCell::new(PlayerState::default());
     static COMBAT_STATE: RefCell<CombatState> = RefCell::new(CombatState::default());
+    static DAMAGE_REACTION: RefCell<DamageReaction> = RefCell::new(DamageReaction::default());
     static IMPACT_FEEDBACK: RefCell<ImpactFeedback> = RefCell::new(ImpactFeedback::default());
     static PAUSED: Cell<bool> = const { Cell::new(false) };
 }
@@ -57,10 +60,20 @@ fn publish_player_stats() {
 }
 
 fn publish_game_ui() {
-    let stats = COMBAT_STATE.with(|state| state.borrow().stats());
+    let (stats, position) = COMBAT_STATE.with(|state| {
+        let state = state.borrow();
+        (state.stats(), state.position())
+    });
     for command in hud::commands(stats) {
         command.publish_with(publish);
     }
+    DAMAGE_REACTION.with(|reaction| {
+        if let Some(rectangles) = reaction.borrow().rectangles(position) {
+            for rectangle in rectangles {
+                publish_message(rectangle);
+            }
+        }
+    });
     IMPACT_FEEDBACK.with(|feedback| {
         if let Some(rectangles) = feedback.borrow().rectangles() {
             for rectangle in rectangles {
@@ -74,6 +87,7 @@ fn reset_state() {
     HELD_KEYS.with(|held| *held.borrow_mut() = HeldKeys::default());
     PLAYER_STATE.with(|state| *state.borrow_mut() = PlayerState::default());
     COMBAT_STATE.with(|state| *state.borrow_mut() = CombatState::default());
+    DAMAGE_REACTION.with(|reaction| *reaction.borrow_mut() = DamageReaction::default());
     IMPACT_FEEDBACK.with(|feedback| *feedback.borrow_mut() = ImpactFeedback::default());
     PAUSED.with(|paused| paused.set(false));
 }
@@ -86,6 +100,9 @@ fn set_paused(paused: bool) {
 }
 
 fn handle_key_down(key: &str) {
+    if DAMAGE_REACTION.with(|reaction| reaction.borrow().active()) {
+        return;
+    }
     if key == "Space" {
         let direction = PLAYER_STATE.with(|state| {
             let mut state = state.borrow_mut();
@@ -102,6 +119,9 @@ fn handle_key_down(key: &str) {
 }
 
 fn handle_key_up(key: &str) {
+    if DAMAGE_REACTION.with(|reaction| reaction.borrow().active()) {
+        return;
+    }
     if key == "Space" {
         PLAYER_STATE.with(|state| state.borrow_mut().release_attack());
     } else {
@@ -111,6 +131,23 @@ fn handle_key_up(key: &str) {
 
 fn is_active_level(sender: &str) -> bool {
     matches!(sender, "level_one" | "level_two")
+}
+
+fn start_damage_reaction(message: PlayerDamaged) {
+    HELD_KEYS.with(|held| *held.borrow_mut() = HeldKeys::default());
+    let facing = PLAYER_STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let facing = state.attack_direction();
+        state.start_damage();
+        facing
+    });
+    let position = COMBAT_STATE.with(|state| state.borrow().position());
+    DAMAGE_REACTION.with(|reaction| {
+        reaction
+            .borrow_mut()
+            .start(position, message.source(), facing)
+    });
+    publish_player_presentation();
 }
 
 struct Component;
@@ -150,13 +187,23 @@ impl Guest for Component {
             publish_game_ui();
             return;
         }
-        let (vx, vy) = HELD_KEYS.with(|held| held.borrow().velocity());
+        let reacting = DAMAGE_REACTION.with(|reaction| reaction.borrow().active());
+        let (vx, vy) = if reacting {
+            DAMAGE_REACTION.with(|reaction| reaction.borrow().velocity_for_tick(dt))
+        } else {
+            HELD_KEYS.with(|held| held.borrow().velocity())
+        };
         publish_entity_op(EntityOp::SetVelocity {
             entity_id: WILL_ENTITY_ID,
             vx,
             vy,
         });
-        let presentation_changed = PLAYER_STATE.with(|state| state.borrow_mut().tick(dt, vx, vy));
+        let presentation_changed = if reacting {
+            let recovered = DAMAGE_REACTION.with(|reaction| reaction.borrow_mut().tick(dt));
+            recovered && PLAYER_STATE.with(|state| state.borrow_mut().recover_from_damage())
+        } else {
+            PLAYER_STATE.with(|state| state.borrow_mut().tick(dt, vx, vy))
+        };
         if presentation_changed {
             publish_player_presentation();
         }
@@ -203,6 +250,7 @@ impl Guest for Component {
                     let outcome =
                         COMBAT_STATE.with(|state| state.borrow_mut().damage(message.amount));
                     if outcome != DamageOutcome::Ignored {
+                        start_damage_reaction(message);
                         publish_player_stats();
                     }
                     if outcome == DamageOutcome::Defeated {

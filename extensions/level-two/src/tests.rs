@@ -66,12 +66,31 @@ fn hostile_slimes_start_clear_of_will_and_rocks() {
 
 #[test]
 fn slime_idle_presentation_loops_while_stationary() {
-    for sprite_id in SLIME_SPRITE_IDS {
-        let presentation = slime_presentation(sprite_id);
-        assert_eq!(presentation.sprite.sprite_id, sprite_id);
-        assert_eq!(presentation.sprite.frame_count, SLIME_FRAME_COUNT);
+    for (sprite_set, expected_id) in SLIME_IDLE_SPRITE_IDS.into_iter().enumerate() {
+        let presentation = slime_presentation(sprite_set, SlimeAnimation::Idle);
+        assert_eq!(presentation.sprite.sprite_id, expected_id);
+        assert_eq!(presentation.sprite.frame_count, 6);
         assert!(presentation.looping);
         assert!(presentation.advance_while_stopped);
+    }
+}
+
+#[test]
+fn slime_reaction_presentations_match_the_authentic_sheet_dimensions() {
+    let expected = [
+        (SlimeAnimation::Walk, [8, 8, 8], true),
+        (SlimeAnimation::Attack, [10, 11, 9], false),
+        (SlimeAnimation::Hurt, [5, 5, 5], false),
+        (SlimeAnimation::Death, [10, 10, 10], false),
+    ];
+    for (animation, frame_counts, looping) in expected {
+        for (sprite_set, expected_frames) in frame_counts.into_iter().enumerate() {
+            let presentation = slime_presentation(sprite_set, animation);
+            assert_eq!(presentation.sprite.frame_count, expected_frames);
+            assert_eq!(presentation.frames_per_row, expected_frames);
+            assert_eq!(presentation.looping, looping);
+            assert!(presentation.advance_while_stopped);
+        }
     }
 }
 

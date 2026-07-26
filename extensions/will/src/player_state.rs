@@ -57,7 +57,7 @@ impl PlayerState {
             return false;
         }
         self.attack_button_down = true;
-        if self.mode == PlayerMode::Attacking {
+        if matches!(self.mode, PlayerMode::Attacking | PlayerMode::Damaged) {
             return false;
         }
         self.mode = PlayerMode::Attacking;
@@ -70,6 +70,9 @@ impl PlayerState {
     }
 
     pub fn tick(&mut self, dt: f32, vx: f32, vy: f32) -> bool {
+        if self.mode == PlayerMode::Damaged {
+            return false;
+        }
         if self.mode == PlayerMode::Attacking {
             self.attack_remaining -= dt.max(0.0);
             if self.attack_remaining > f32::EPSILON {
@@ -88,6 +91,22 @@ impl PlayerState {
         self.facing = next_facing;
         self.attack_remaining = 0.0;
         changed
+    }
+
+    pub fn start_damage(&mut self) -> bool {
+        let changed = self.mode != PlayerMode::Damaged;
+        self.mode = PlayerMode::Damaged;
+        self.attack_button_down = false;
+        self.attack_remaining = 0.0;
+        changed
+    }
+
+    pub fn recover_from_damage(&mut self) -> bool {
+        if self.mode != PlayerMode::Damaged {
+            return false;
+        }
+        self.mode = PlayerMode::Idle;
+        true
     }
 
     pub fn presentation(&self) -> SpritePresentation {
@@ -126,6 +145,17 @@ impl PlayerState {
                 | ObjectFacing::DownLeft
                 | ObjectFacing::DownRight,
             ) => ATTACK_SIDE_SPRITE_ID,
+            (PlayerMode::Damaged, ObjectFacing::Down) => IDLE_DOWN_SPRITE_ID,
+            (PlayerMode::Damaged, ObjectFacing::Up) => IDLE_UP_SPRITE_ID,
+            (
+                PlayerMode::Damaged,
+                ObjectFacing::Left
+                | ObjectFacing::Right
+                | ObjectFacing::UpLeft
+                | ObjectFacing::UpRight
+                | ObjectFacing::DownLeft
+                | ObjectFacing::DownRight,
+            ) => IDLE_SIDE_SPRITE_ID,
         };
         SpritePresentation {
             sprite: Sprite {
@@ -134,6 +164,8 @@ impl PlayerState {
                 frame_h: FRAME_SIZE,
                 frame_count: if attacking {
                     ATTACK_FRAME_COUNT
+                } else if self.mode == PlayerMode::Damaged {
+                    1
                 } else {
                     LOOPING_FRAME_COUNT
                 },
@@ -142,7 +174,7 @@ impl PlayerState {
             frames_per_row: FRAMES_PER_ROW,
             draw_w: DRAW_SIZE,
             draw_h: DRAW_SIZE,
-            looping: !attacking,
+            looping: !matches!(self.mode, PlayerMode::Attacking | PlayerMode::Damaged),
             advance_while_stopped: true,
             flip_h: matches!(
                 self.facing,

@@ -41,6 +41,13 @@ fn invalid_transform_snapshots_do_not_poison_attack_origins() {
 }
 
 #[test]
+fn exposes_the_latest_valid_position_for_world_space_feedback() {
+    let mut state = CombatState::default();
+    state.update_position(12.0, 34.0);
+    assert_eq!(state.position(), (12.0, 34.0));
+}
+
+#[test]
 fn damage_has_invulnerability_and_zero_lives_defeats_once() {
     let mut state = CombatState::default();
     assert_eq!(state.damage(1), DamageOutcome::Applied);

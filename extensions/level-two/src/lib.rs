@@ -17,7 +17,10 @@ use bones_messages::game_core::{
 use bones_messages::gfx::LoadSprite;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use game_messages::{AttackRequested, PauseChanged, PlayerDamaged, WILL_ENTITY_ID, WILL_SPAWN};
-use slime_state::{SlimeField, SlimeSpawn, SLIME_COLLIDER_HALF_H, SLIME_COLLIDER_HALF_W};
+use slime_state::{
+    SlimeAnimation, SlimeField, SlimeSpawn, SlimeVisual, SLIME_COLLIDER_HALF_H,
+    SLIME_COLLIDER_HALF_W,
+};
 
 const LEVEL_TWO_TMX: &[u8] = include_bytes!("../assets/level-two.tmx");
 const GRASS_PNG: &[u8] = include_bytes!(
@@ -25,24 +28,62 @@ const GRASS_PNG: &[u8] = include_bytes!(
 );
 const ROCK_CLUSTER_PNG: &[u8] = include_bytes!("../assets/rock-cluster.png");
 const BOULDER_PNG: &[u8] = include_bytes!("../assets/boulder.png");
-const SLIME_ONE_PNG: &[u8] = include_bytes!(
+const SLIME_ONE_IDLE_PNG: &[u8] = include_bytes!(
     "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Idle_with_shadow.png"
 );
-const SLIME_TWO_PNG: &[u8] = include_bytes!(
+const SLIME_TWO_IDLE_PNG: &[u8] = include_bytes!(
     "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Idle_with_shadow.png"
 );
-const SLIME_THREE_PNG: &[u8] = include_bytes!(
+const SLIME_THREE_IDLE_PNG: &[u8] = include_bytes!(
     "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Idle_with_shadow.png"
+);
+const SLIME_ONE_WALK_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Walk_with_shadow.png"
+);
+const SLIME_TWO_WALK_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Walk_with_shadow.png"
+);
+const SLIME_THREE_WALK_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Walk_with_shadow.png"
+);
+const SLIME_ONE_ATTACK_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Attack_with_shadow.png"
+);
+const SLIME_TWO_ATTACK_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Attack_with_shadow.png"
+);
+const SLIME_THREE_ATTACK_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Attack_with_shadow.png"
+);
+const SLIME_ONE_HURT_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Hurt_with_shadow.png"
+);
+const SLIME_TWO_HURT_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Hurt_with_shadow.png"
+);
+const SLIME_THREE_HURT_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Hurt_with_shadow.png"
+);
+const SLIME_ONE_DEATH_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Death_with_shadow.png"
+);
+const SLIME_TWO_DEATH_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Death_with_shadow.png"
+);
+const SLIME_THREE_DEATH_PNG: &[u8] = include_bytes!(
+    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Death_with_shadow.png"
 );
 
 const GRASS_SPRITE_ID: u32 = 20;
 const ROCK_CLUSTER_SPRITE_ID: u32 = 21;
 const BOULDER_SPRITE_ID: u32 = 22;
-const SLIME_SPRITE_IDS: [u32; 3] = [30, 31, 32];
+const SLIME_IDLE_SPRITE_IDS: [u32; 3] = [30, 31, 32];
+const SLIME_WALK_SPRITE_IDS: [u32; 3] = [33, 34, 35];
+const SLIME_ATTACK_SPRITE_IDS: [u32; 3] = [36, 37, 38];
+const SLIME_HURT_SPRITE_IDS: [u32; 3] = [39, 40, 41];
+const SLIME_DEATH_SPRITE_IDS: [u32; 3] = [42, 43, 44];
 const ROCK_FRAME_SIZE: u32 = 128;
 const SLIME_FRAME_SIZE: u32 = 64;
-const SLIME_FRAME_COUNT: u32 = 6;
-const SLIME_FRAME_DURATION: f32 = 0.16;
 const ROCK_ID_START: u32 = 100;
 const SLIME_ID_START: u32 = 200;
 
@@ -75,12 +116,12 @@ const ROCKS: &[Rock] = &[
     Rock::boulder(800.0, 800.0),
 ];
 const SLIMES: &[SlimeSpawn] = &[
-    SlimeSpawn::new(SLIME_SPRITE_IDS[0], 480.0, 288.0),
-    SlimeSpawn::new(SLIME_SPRITE_IDS[1], 480.0, 576.0),
-    SlimeSpawn::new(SLIME_SPRITE_IDS[2], 240.0, 528.0),
-    SlimeSpawn::new(SLIME_SPRITE_IDS[0], 800.0, 512.0),
-    SlimeSpawn::new(SLIME_SPRITE_IDS[1], 640.0, 752.0),
-    SlimeSpawn::new(SLIME_SPRITE_IDS[2], 416.0, 720.0),
+    SlimeSpawn::new(0, 480.0, 288.0),
+    SlimeSpawn::new(1, 480.0, 576.0),
+    SlimeSpawn::new(2, 240.0, 528.0),
+    SlimeSpawn::new(0, 800.0, 512.0),
+    SlimeSpawn::new(1, 640.0, 752.0),
+    SlimeSpawn::new(2, 416.0, 720.0),
 ];
 
 thread_local! {
@@ -188,19 +229,36 @@ fn spawn_rocks() {
     }
 }
 
-fn slime_presentation(sprite_id: u32) -> SpritePresentation {
+fn slime_sheet(sprite_set: usize, animation: SlimeAnimation) -> (u32, u32, f32, bool) {
+    let (ids, frame_counts, frame_duration, looping) = match animation {
+        SlimeAnimation::Idle => (&SLIME_IDLE_SPRITE_IDS, [6, 6, 6], 0.16, true),
+        SlimeAnimation::Walk => (&SLIME_WALK_SPRITE_IDS, [8, 8, 8], 0.10, true),
+        SlimeAnimation::Attack => (&SLIME_ATTACK_SPRITE_IDS, [10, 11, 9], 0.08, false),
+        SlimeAnimation::Hurt => (&SLIME_HURT_SPRITE_IDS, [5, 5, 5], 0.08, false),
+        SlimeAnimation::Death => (&SLIME_DEATH_SPRITE_IDS, [10, 10, 10], 0.08, false),
+    };
+    (
+        ids[sprite_set],
+        frame_counts[sprite_set],
+        frame_duration,
+        looping,
+    )
+}
+
+fn slime_presentation(sprite_set: usize, animation: SlimeAnimation) -> SpritePresentation {
+    let (sprite_id, frame_count, frame_duration, looping) = slime_sheet(sprite_set, animation);
     SpritePresentation {
         sprite: Sprite {
             sprite_id,
             frame_w: SLIME_FRAME_SIZE,
             frame_h: SLIME_FRAME_SIZE,
-            frame_count: SLIME_FRAME_COUNT,
-            frame_duration: SLIME_FRAME_DURATION,
+            frame_count,
+            frame_duration,
         },
-        frames_per_row: SLIME_FRAME_COUNT,
+        frames_per_row: frame_count,
         draw_w: SLIME_FRAME_SIZE,
         draw_h: SLIME_FRAME_SIZE,
-        looping: true,
+        looping,
         advance_while_stopped: true,
         flip_h: false,
         flip_v: false,
@@ -209,9 +267,21 @@ fn slime_presentation(sprite_id: u32) -> SpritePresentation {
 
 fn load_slime_sprites() {
     for (id, png_bytes) in [
-        (SLIME_SPRITE_IDS[0], SLIME_ONE_PNG),
-        (SLIME_SPRITE_IDS[1], SLIME_TWO_PNG),
-        (SLIME_SPRITE_IDS[2], SLIME_THREE_PNG),
+        (SLIME_IDLE_SPRITE_IDS[0], SLIME_ONE_IDLE_PNG),
+        (SLIME_IDLE_SPRITE_IDS[1], SLIME_TWO_IDLE_PNG),
+        (SLIME_IDLE_SPRITE_IDS[2], SLIME_THREE_IDLE_PNG),
+        (SLIME_WALK_SPRITE_IDS[0], SLIME_ONE_WALK_PNG),
+        (SLIME_WALK_SPRITE_IDS[1], SLIME_TWO_WALK_PNG),
+        (SLIME_WALK_SPRITE_IDS[2], SLIME_THREE_WALK_PNG),
+        (SLIME_ATTACK_SPRITE_IDS[0], SLIME_ONE_ATTACK_PNG),
+        (SLIME_ATTACK_SPRITE_IDS[1], SLIME_TWO_ATTACK_PNG),
+        (SLIME_ATTACK_SPRITE_IDS[2], SLIME_THREE_ATTACK_PNG),
+        (SLIME_HURT_SPRITE_IDS[0], SLIME_ONE_HURT_PNG),
+        (SLIME_HURT_SPRITE_IDS[1], SLIME_TWO_HURT_PNG),
+        (SLIME_HURT_SPRITE_IDS[2], SLIME_THREE_HURT_PNG),
+        (SLIME_DEATH_SPRITE_IDS[0], SLIME_ONE_DEATH_PNG),
+        (SLIME_DEATH_SPRITE_IDS[1], SLIME_TWO_DEATH_PNG),
+        (SLIME_DEATH_SPRITE_IDS[2], SLIME_THREE_DEATH_PNG),
     ] {
         publish(LoadSprite::TOPIC, &LoadSprite { id, png_bytes }.encode());
     }
@@ -220,7 +290,7 @@ fn load_slime_sprites() {
 fn spawn_slimes() {
     for (index, slime) in SLIMES.iter().enumerate() {
         let entity_id = SLIME_ID_START + index as u32;
-        let presentation = slime_presentation(slime.sprite_id);
+        let presentation = slime_presentation(slime.sprite_set, SlimeAnimation::Idle);
         publish_entity_op(EntityOp::Spawn {
             entity_id,
             x: slime.x,
@@ -238,6 +308,31 @@ fn spawn_slimes() {
             presentation,
         });
     }
+}
+
+fn publish_slime_visual(visual: SlimeVisual) {
+    let presentation = slime_presentation(visual.sprite_set, visual.animation);
+    if visual.animation == SlimeAnimation::Death {
+        publish_entity_op(EntityOp::Despawn {
+            entity_id: visual.entity_id,
+        });
+        publish_entity_op(EntityOp::Spawn {
+            entity_id: visual.entity_id,
+            x: visual.x,
+            y: visual.y,
+            sprite: Some(presentation.sprite),
+            square_color: (0, 0, 0, 0),
+            shape: Shape::Rect,
+            collider_half_w: 0.0,
+            collider_half_h: 0.0,
+            body_kind: BodyKind::Fixed,
+            worlds: PhysicsWorlds::RETRO,
+        });
+    }
+    publish_entity_op(EntityOp::SetSprite {
+        entity_id: visual.entity_id,
+        presentation,
+    });
 }
 
 fn configure_camera() {
@@ -276,6 +371,7 @@ impl Guest for Component {
         subscribe(Collision::TOPIC);
         subscribe(PauseChanged::TOPIC);
         subscribe(AttackRequested::TOPIC);
+        subscribe("core/tick");
         load_ruins_map();
         load_rock_sprites();
         spawn_rocks();
@@ -288,14 +384,21 @@ impl Guest for Component {
         );
     }
 
-    fn on_tick(_dt: f32) {
+    fn on_tick(dt: f32) {
         SLIME_FIELD.with(|field| {
-            for velocity in field.borrow().velocities() {
+            let tick = field.borrow_mut().tick(dt);
+            for velocity in tick.velocities {
                 publish_entity_op(EntityOp::SetVelocity {
                     entity_id: velocity.entity_id,
                     vx: velocity.vx,
                     vy: velocity.vy,
                 });
+            }
+            for visual in tick.visuals {
+                publish_slime_visual(visual);
+            }
+            for entity_id in tick.despawns {
+                publish_entity_op(EntityOp::Despawn { entity_id });
             }
         });
     }
@@ -315,9 +418,17 @@ impl Guest for Component {
             }
             Collision::TOPIC if sender == "game-core" => {
                 if let Ok(collision) = Collision::decode(&payload) {
-                    let hit = SLIME_FIELD.with(|field| field.borrow().is_will_contact(collision));
-                    if hit {
-                        publish_message(PlayerDamaged { amount: 1 });
+                    let contact =
+                        SLIME_FIELD.with(|field| field.borrow_mut().will_contact(collision));
+                    if let Some(contact) = contact {
+                        publish_message(PlayerDamaged {
+                            amount: 1,
+                            source_x: contact.source_x,
+                            source_y: contact.source_y,
+                        });
+                        if let Some(visual) = contact.visual {
+                            publish_slime_visual(visual);
+                        }
                     }
                 }
             }
@@ -331,11 +442,7 @@ impl Guest for Component {
                     let hit = SLIME_FIELD.with(|field| field.borrow_mut().attack(attack));
                     if let Some(hit) = hit {
                         publish_message(hit.hit);
-                        if hit.defeated {
-                            publish_entity_op(EntityOp::Despawn {
-                                entity_id: hit.hit.entity_id,
-                            });
-                        }
+                        publish_slime_visual(hit.visual);
                         if let Some(reward) = hit.reward {
                             publish_message(reward);
                         }

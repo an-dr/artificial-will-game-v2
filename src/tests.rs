@@ -335,9 +335,9 @@ fn combat_rewards_hud_and_defeat_restart_flow_across_extensions() {
         .is_ok());
     captured.lock().unwrap().clear();
 
-    for sequence in [200, 201] {
+    let attack_slime = |built: &mut runner::BuiltEngine, sequence| {
         publish_message(
-            &mut built,
+            built,
             "will",
             AttackRequested {
                 sequence,
@@ -348,23 +348,40 @@ fn combat_rewards_hud_and_defeat_restart_flow_across_extensions() {
                 half_width: 24.0,
             },
         );
-        pump(&mut built, 6);
-    }
+    };
+    attack_slime(&mut built, 200);
+    pump(&mut built, 2);
+    assert!(captured.lock().unwrap().iter().any(|event| {
+        event.sender == "level_two"
+            && event.topic == HitConfirmed::TOPIC
+            && HitConfirmed::decode(&event.payload)
+                .is_ok_and(|hit| hit.entity_id == 200 && hit.sequence == 200)
+    }));
+    assert!(captured.lock().unwrap().iter().any(|event| {
+        event.sender == "level_two"
+            && event.topic == EntityOpMessage::TOPIC
+            && EntityOpMessage::decode(&event.payload).is_ok_and(|message| {
+                matches!(
+                    message.0,
+                    EntityOp::SetSprite {
+                        entity_id: 200,
+                        presentation
+                    } if presentation.sprite.sprite_id == 39 && presentation.sprite.frame_count == 5
+                )
+            })
+    }));
+    captured.lock().unwrap().clear();
+
+    attack_slime(&mut built, 201);
     pump(&mut built, 6);
     {
         let events = captured.lock().unwrap();
-        assert_eq!(
-            events
-                .iter()
-                .filter(|event| {
-                    event.sender == "level_two"
-                        && event.topic == HitConfirmed::TOPIC
-                        && HitConfirmed::decode(&event.payload)
-                            .is_ok_and(|hit| hit.entity_id == 200)
-                })
-                .count(),
-            2
-        );
+        assert!(events.iter().any(|event| {
+            event.sender == "level_two"
+                && event.topic == HitConfirmed::TOPIC
+                && HitConfirmed::decode(&event.payload)
+                    .is_ok_and(|hit| hit.entity_id == 200 && hit.sequence == 201)
+        }));
         assert!(events.iter().any(|event| {
             event.sender == "level_two"
                 && event.topic == RewardGranted::TOPIC
@@ -377,9 +394,101 @@ fn combat_rewards_hud_and_defeat_restart_flow_across_extensions() {
                 && PlayerStats::decode(&event.payload)
                     .is_ok_and(|stats| stats.experience == 1 && stats.level == 1)
         }));
+        assert!(events.iter().any(|event| {
+            event.sender == "level_two"
+                && event.topic == EntityOpMessage::TOPIC
+                && EntityOpMessage::decode(&event.payload).is_ok_and(|message| {
+                    matches!(
+                        message.0,
+                        EntityOp::Spawn {
+                            entity_id: 200,
+                            sprite: Some(sprite),
+                            collider_half_w: 0.0,
+                            collider_half_h: 0.0,
+                            ..
+                        } if sprite.sprite_id == 42 && sprite.frame_count == 10
+                    )
+                })
+        }));
     }
-
-    publish_message(&mut built, "level_two", PlayerDamaged { amount: 3 });
+    captured.lock().unwrap().clear();
+    publish_message(
+        &mut built,
+        "level_two",
+        PlayerDamaged {
+            amount: 1,
+            source_x: 464.0,
+            source_y: 600.0,
+        },
+    );
+    pump(&mut built, 2);
+    {
+        let events = captured.lock().unwrap();
+        assert!(events.iter().any(|event| {
+            event.sender == "will"
+                && event.topic == EntityOpMessage::TOPIC
+                && EntityOpMessage::decode(&event.payload).is_ok_and(|message| {
+                    matches!(
+                        message.0,
+                        EntityOp::SetVelocity {
+                            entity_id: 1,
+                            vx,
+                            vy
+                        } if vx.abs() < 0.001 && vy < -200.0
+                    )
+                })
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "will"
+                && event.topic == DrawRect::TOPIC
+                && DrawRect::decode(&event.payload).is_ok_and(|rectangle| {
+                    !rectangle.screen_space
+                        && rectangle.color.0 == 255
+                        && rectangle.color.1 < 100
+                        && rectangle.layer >= 244
+                })
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "will"
+                && event.topic == PlayerStats::TOPIC
+                && PlayerStats::decode(&event.payload).is_ok_and(|stats| stats.lives == 2)
+        }));
+    }
+    pump(&mut built, 50);
+    {
+        let events = captured.lock().unwrap();
+        assert!(events.iter().any(|event| {
+            event.sender == "will"
+                && event.topic == EntityOpMessage::TOPIC
+                && EntityOpMessage::decode(&event.payload).is_ok_and(|message| {
+                    matches!(
+                        message.0,
+                        EntityOp::SetSprite {
+                            entity_id: 1,
+                            presentation
+                        } if presentation.sprite.sprite_id == 1
+                            && presentation.sprite.frame_count == 5
+                            && presentation.looping
+                    )
+                })
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "level_two"
+                && event.topic == EntityOpMessage::TOPIC
+                && EntityOpMessage::decode(&event.payload)
+                    .is_ok_and(|message| matches!(message.0, EntityOp::Despawn { entity_id: 200 }))
+        }));
+    }
+    captured.lock().unwrap().clear();
+    publish_message(
+        &mut built,
+        "level_two",
+        PlayerDamaged {
+            amount: 3,
+            source_x: 480.0,
+            source_y: 576.0,
+        },
+    );
     pump(&mut built, 20);
     {
         let events = captured.lock().unwrap();

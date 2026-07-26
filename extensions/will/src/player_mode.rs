@@ -4,4 +4,5 @@ pub enum PlayerMode {
     Idle,
     Moving,
     Attacking,
+    Damaged,
 }

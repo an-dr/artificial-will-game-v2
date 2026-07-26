@@ -73,3 +73,23 @@ fn attack_direction_uses_the_frozen_cardinal_facing() {
     state.tick(0.1, 160.0, 0.0);
     assert_eq!(state.attack_direction(), AttackDirection::Left);
 }
+
+#[test]
+fn damage_state_locks_actions_and_uses_a_frozen_idle_frame_until_recovery() {
+    let mut state = PlayerState::default();
+    state.tick(0.016, 160.0, 0.0);
+    assert!(state.start_damage());
+    assert!(!state.start_damage());
+    assert!(!state.press_attack());
+    assert!(!state.tick(10.0, -160.0, 0.0));
+
+    let damaged = state.presentation();
+    assert_eq!(damaged.sprite.sprite_id, IDLE_SIDE_SPRITE_ID);
+    assert_eq!(damaged.sprite.frame_count, 1);
+    assert!(!damaged.looping);
+    assert!(damaged.flip_h);
+
+    assert!(state.recover_from_damage());
+    assert_eq!(state.presentation().sprite.sprite_id, IDLE_SIDE_SPRITE_ID);
+    assert!(!state.recover_from_damage());
+}

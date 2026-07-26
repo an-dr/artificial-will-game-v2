@@ -2,8 +2,8 @@ use super::*;
 use game_messages::AttackDirection;
 
 const SPAWNS: &[SlimeSpawn] = &[
-    SlimeSpawn::new(30, 100.0, 100.0),
-    SlimeSpawn::new(31, 500.0, 500.0),
+    SlimeSpawn::new(0, 100.0, 100.0),
+    SlimeSpawn::new(1, 500.0, 500.0),
 ];
 
 #[test]
@@ -39,19 +39,30 @@ fn malformed_updates_are_ignored_and_pause_stops_every_slime() {
 
 #[test]
 fn will_contact_accepts_either_collision_order_and_only_slimes() {
-    let field = SlimeField::new(200, SPAWNS, (0.0, 0.0));
-    assert!(field.is_will_contact(Collision {
-        entity_id_a: WILL_ENTITY_ID,
-        entity_id_b: 200,
-    }));
-    assert!(field.is_will_contact(Collision {
-        entity_id_a: 201,
-        entity_id_b: WILL_ENTITY_ID,
-    }));
-    assert!(!field.is_will_contact(Collision {
-        entity_id_a: WILL_ENTITY_ID,
-        entity_id_b: 100,
-    }));
+    let mut field = SlimeField::new(200, SPAWNS, (0.0, 0.0));
+    let first = field
+        .will_contact(Collision {
+            entity_id_a: WILL_ENTITY_ID,
+            entity_id_b: 200,
+        })
+        .unwrap();
+    assert_eq!((first.source_x, first.source_y), (100.0, 100.0));
+    assert_eq!(first.visual.unwrap().animation, SlimeAnimation::Attack);
+
+    let second = field
+        .will_contact(Collision {
+            entity_id_a: 201,
+            entity_id_b: WILL_ENTITY_ID,
+        })
+        .unwrap();
+    assert_eq!((second.source_x, second.source_y), (500.0, 500.0));
+    assert_eq!(
+        field.will_contact(Collision {
+            entity_id_a: WILL_ENTITY_ID,
+            entity_id_b: 100,
+        }),
+        None
+    );
 }
 
 fn attack(sequence: u32) -> AttackRequested {
@@ -93,8 +104,58 @@ fn defeated_slime_stops_moving_and_cannot_damage_will() {
     field.attack(attack(2));
 
     assert!(field.velocities().is_empty());
-    assert!(!field.is_will_contact(Collision {
-        entity_id_a: WILL_ENTITY_ID,
-        entity_id_b: 200,
-    }));
+    assert_eq!(
+        field.will_contact(Collision {
+            entity_id_a: WILL_ENTITY_ID,
+            entity_id_b: 200,
+        }),
+        None
+    );
+}
+
+#[test]
+fn hurt_and_contact_reactions_stop_motion_then_recover() {
+    let mut field = SlimeField::new(200, &SPAWNS[..1], (172.0, 100.0));
+    let hit = field.attack(attack(1)).unwrap();
+    assert_eq!(hit.visual.animation, SlimeAnimation::Hurt);
+    assert_eq!(
+        (field.velocities()[0].vx, field.velocities()[0].vy),
+        (0.0, 0.0)
+    );
+
+    let during = field.tick(SLIME_HURT_DURATION * 0.5);
+    assert!(during.visuals.is_empty());
+    let recovered = field.tick(SLIME_HURT_DURATION);
+    assert_eq!(recovered.visuals[0].animation, SlimeAnimation::Walk);
+    assert_eq!(recovered.velocities[0].vx, SLIME_SPEED);
+}
+
+#[test]
+fn death_visual_is_removed_only_after_its_animation_finishes() {
+    let mut field = SlimeField::new(200, &SPAWNS[..1], (172.0, 100.0));
+    field.attack(attack(1));
+    let death = field.attack(attack(2)).unwrap();
+    assert_eq!(death.visual.animation, SlimeAnimation::Death);
+
+    assert!(field.tick(SLIME_DEATH_DURATION * 0.5).despawns.is_empty());
+    assert_eq!(
+        field.tick(SLIME_DEATH_DURATION).despawns,
+        vec![death.hit.entity_id]
+    );
+    assert!(field.tick(1.0).despawns.is_empty());
+}
+
+#[test]
+fn pause_freezes_reaction_timers() {
+    let mut field = SlimeField::new(200, &SPAWNS[..1], (172.0, 100.0));
+    field.attack(attack(1));
+    field.set_paused(true);
+    field.tick(10.0);
+    field.set_paused(false);
+
+    assert!(field.tick(SLIME_HURT_DURATION * 0.5).visuals.is_empty());
+    assert_eq!(
+        field.tick(SLIME_HURT_DURATION).visuals[0].animation,
+        SlimeAnimation::Walk
+    );
 }

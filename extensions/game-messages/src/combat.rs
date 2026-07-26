@@ -146,9 +146,19 @@ pub fn select_attack_target(
 }
 
 /// Damage requested by the active level after hostile contact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlayerDamaged {
     pub amount: u8,
+    pub source_x: f32,
+    pub source_y: f32,
+}
+
+impl PlayerDamaged {
+    /// Returns the hostile world position when both coordinates are usable.
+    pub fn source(self) -> Option<(f32, f32)> {
+        (self.source_x.is_finite() && self.source_y.is_finite())
+            .then_some((self.source_x, self.source_y))
+    }
 }
 
 impl Message for PlayerDamaged {
@@ -157,7 +167,11 @@ impl Message for PlayerDamaged {
 
 impl EncodeMessage for PlayerDamaged {
     fn encode(&self) -> Vec<u8> {
-        Writer::new().u8(self.amount).finish()
+        Writer::new()
+            .u8(self.amount)
+            .f32(self.source_x)
+            .f32(self.source_y)
+            .finish()
     }
 }
 
@@ -166,6 +180,8 @@ impl<'a> DecodeMessage<'a> for PlayerDamaged {
         let mut reader = Reader::new(payload);
         let message = Self {
             amount: reader.read_u8()?,
+            source_x: reader.read_f32()?,
+            source_y: reader.read_f32()?,
         };
         reader.finish()?;
         Ok(message)
