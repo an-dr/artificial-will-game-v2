@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use bones_messages::game_core::{Collision, EntityOp, EntityOpMessage};
 use bones_messages::gfx::{ClearDrawBatch, DrawRect, DrawSprite, DrawText};
 use bones_messages::input::KeyDown;
+use bones_messages::renderer::LogicalCanvas;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use bus::Envelope;
 use game_messages::{
@@ -53,6 +54,10 @@ fn publish_message<M: Message + EncodeMessage>(
     });
 }
 
+fn announce_logical_canvas(built: &mut runner::BuiltEngine, width: u32, height: u32) {
+    publish_message(built, "renderer", LogicalCanvas { width, height });
+}
+
 fn pump(built: &mut runner::BuiltEngine, frames: usize) {
     for _ in 0..frames {
         built.runner.step(1.0 / 60.0);
@@ -94,6 +99,7 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
         .module(game_core::GameCore::new())
         .build()
         .unwrap();
+    announce_logical_canvas(&mut built, 800, 600);
 
     let captured_graphics = Arc::new(Mutex::new(Vec::new()));
     let graphics_sink = Arc::clone(&captured_graphics);
@@ -240,6 +246,7 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
         .module(game_core::GameCore::new())
         .build()
         .unwrap();
+    announce_logical_canvas(&mut built, 960, 540);
 
     let captured = Arc::new(Mutex::new(Vec::new()));
     let sink = Arc::clone(&captured);
@@ -531,7 +538,7 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
                         && text.color.0 == 255
                         && text.color.1 < 80
                         && text.color.2 < 80
-                        && text.x == 400
+                        && text.x == 480
                         && text.align == bones_messages::gfx::TextAlign::Center
                 })
         }));
@@ -546,7 +553,7 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
                 && DrawText::decode(&event.payload).is_ok_and(|text| {
                     text.screen_space
                         && text.text == "PRESS ENTER TO MAIN MENU"
-                        && text.x == 400
+                        && text.x == 480
                         && text.align == bones_messages::gfx::TextAlign::Center
                 })
         }));
@@ -555,7 +562,7 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
                 && event.topic == DrawRect::TOPIC
                 && DrawRect::decode(&event.payload).is_ok_and(|rectangle| {
                     rectangle.screen_space
-                        && (rectangle.x, rectangle.y, rectangle.w, rectangle.h) == (0, 0, 800, 600)
+                        && (rectangle.x, rectangle.y, rectangle.w, rectangle.h) == (0, 0, 960, 540)
                         && rectangle.color == (0, 0, 0, 255)
                 })
         }));
@@ -587,7 +594,7 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
             && event.topic == DrawRect::TOPIC
             && DrawRect::decode(&event.payload).is_ok_and(|rectangle| {
                 rectangle.screen_space
-                    && (rectangle.x, rectangle.y, rectangle.w, rectangle.h) == (0, 0, 800, 600)
+                    && (rectangle.x, rectangle.y, rectangle.w, rectangle.h) == (0, 0, 960, 540)
                     && rectangle.color.3 == 255
             })
     }));
@@ -606,6 +613,7 @@ fn slime_contact_is_harmless_and_a_timed_attack_deals_damage() {
         .module(game_core::GameCore::new())
         .build()
         .unwrap();
+    announce_logical_canvas(&mut built, 800, 600);
 
     let captured = Arc::new(Mutex::new(Vec::new()));
     let sink = Arc::clone(&captured);

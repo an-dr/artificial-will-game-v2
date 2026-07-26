@@ -2,8 +2,6 @@ use crate::display_preferences::DisplayPreferences;
 use crate::screen::Screen;
 use game_ui::{Button, Canvas, MenuLayout, VerticalMenu};
 
-pub const SCREEN_WIDTH: u32 = 800;
-pub const SCREEN_HEIGHT: u32 = 600;
 pub const START: u32 = 1;
 pub const START_SETTINGS: u32 = 2;
 pub const QUIT: u32 = 3;
@@ -26,14 +24,10 @@ const PANEL_PADDING: i32 = 28;
 const BUTTON_HEIGHT: u32 = 44;
 const BUTTON_GAP: u32 = 10;
 
-pub const fn canvas() -> Canvas {
-    Canvas::new(SCREEN_WIDTH, SCREEN_HEIGHT)
-}
-
-fn vertical_menu() -> VerticalMenu {
+fn vertical_menu(canvas: Canvas) -> VerticalMenu {
     VerticalMenu {
-        canvas: canvas(),
-        panel_width: PANEL_WIDTH,
+        canvas,
+        panel_width: PANEL_WIDTH.min(canvas.width),
         header_height: TITLE_HEIGHT as u32,
         padding: PANEL_PADDING as u32,
         button_height: BUTTON_HEIGHT,
@@ -42,6 +36,7 @@ fn vertical_menu() -> VerticalMenu {
 }
 
 pub fn build_layout(
+    canvas: Canvas,
     screen: Screen,
     preferences: DisplayPreferences,
     resolutions: &[(u32, u32)],
@@ -96,7 +91,7 @@ pub fn build_layout(
         }
         Screen::Gameplay => Vec::new(),
     };
-    vertical_menu().layout(buttons)
+    vertical_menu(canvas).layout(buttons)
 }
 
 #[cfg(test)]

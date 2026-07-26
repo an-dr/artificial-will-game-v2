@@ -5,10 +5,10 @@ use bones_messages::game_core::{EntityOp, EntityOpMessage};
 use bones_messages::gfx::{ClearDrawBatch, SetDisplay, TextAlign};
 use bones_messages::input::{KeyDown, MouseDown, MouseMove};
 use bones_messages::persistence::{Save, ENDPOINT as PERSISTENCE};
-use bones_messages::renderer::DisplayChanged;
+use bones_messages::renderer::{DisplayChanged, LogicalCanvas};
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use game_messages::{PauseChanged, PlayerDefeated, SessionReset};
-use game_ui::{DrawCommand, Rect, Selection};
+use game_ui::{Canvas, DrawCommand, Rect, Selection};
 
 use crate::bones::core::host_api::{
     list_display_modes, log, native_display_mode, publish, request_exit, send, subscribe,
@@ -16,9 +16,9 @@ use crate::bones::core::host_api::{
 };
 use crate::display_preferences::DisplayPreferences;
 use crate::game_ui::{
-    build_layout, canvas, FULLSCREEN, GAME_OVER_MAIN_MENU, LEVEL_BACK, LEVEL_ONE, LEVEL_TWO,
-    MAIN_MENU, PAUSE_LEVELS, PAUSE_QUIT, PAUSE_SETTINGS, QUIT, RESOLUTION_BASE, RESUME,
-    SCREEN_HEIGHT, SCREEN_WIDTH, SETTINGS_BACK, START, START_SETTINGS,
+    build_layout, FULLSCREEN, GAME_OVER_MAIN_MENU, LEVEL_BACK, LEVEL_ONE, LEVEL_TWO, MAIN_MENU,
+    PAUSE_LEVELS, PAUSE_QUIT, PAUSE_SETTINGS, QUIT, RESOLUTION_BASE, RESUME, SETTINGS_BACK, START,
+    START_SETTINGS,
 };
 use crate::level::Level;
 use crate::menu_state::MenuState;
@@ -48,16 +48,28 @@ struct State {
     preferences: DisplayPreferences,
     resolutions: Vec<(u32, u32)>,
     window_size: (u32, u32),
+    canvas: Option<Canvas>,
+    selection: Selection,
+}
+
+struct UiSnapshot {
+    canvas: Canvas,
+    screen: Screen,
+    has_active_session: bool,
+    preferences: DisplayPreferences,
+    resolutions: Vec<(u32, u32)>,
     selection: Selection,
 }
 
 impl Default for State {
     fn default() -> Self {
+        let preferences = DisplayPreferences::default();
         Self {
             menu: MenuState::default(),
-            preferences: DisplayPreferences::default(),
-            resolutions: vec![(800, 600)],
-            window_size: (800, 600),
+            preferences,
+            resolutions: vec![(preferences.width, preferences.height)],
+            window_size: (preferences.width, preferences.height),
+            canvas: None,
             selection: Selection::default(),
         }
     }
@@ -146,6 +158,7 @@ pub fn init() {
     subscribe(MouseDown::TOPIC);
     subscribe(MouseMove::TOPIC);
     subscribe(DisplayChanged::TOPIC);
+    subscribe(LogicalCanvas::TOPIC);
     subscribe(PlayerDefeated::TOPIC);
     subscribe("core/tick");
 
@@ -160,7 +173,8 @@ pub fn init() {
             menu: MenuState::default(),
             preferences,
             resolutions,
-            window_size: (800, 600),
+            window_size: (preferences.width, preferences.height),
+            canvas: None,
             selection: Selection::default(),
         };
     });
@@ -175,16 +189,17 @@ pub fn shutdown() {
     }
 }
 
-fn read_ui_state() -> (Screen, bool, DisplayPreferences, Vec<(u32, u32)>, Selection) {
+fn read_ui_state() -> Option<UiSnapshot> {
     STATE.with(|state| {
         let state = state.borrow();
-        (
-            state.menu.screen(),
-            state.menu.active_level().is_some(),
-            state.preferences,
-            state.resolutions.clone(),
-            state.selection,
-        )
+        Some(UiSnapshot {
+            canvas: state.canvas?,
+            screen: state.menu.screen(),
+            has_active_session: state.menu.active_level().is_some(),
+            preferences: state.preferences,
+            resolutions: state.resolutions.clone(),
+            selection: state.selection,
+        })
     })
 }
 
@@ -218,10 +233,10 @@ fn draw_text(text: &str, x: i32, y: i32, size: u16, color: (u8, u8, u8, u8)) {
     DrawCommand::text(text, x, y, size, color, MENU_LAYER).publish_with(publish);
 }
 
-fn draw_centered_text(text: &str, y: i32, size: u16, color: (u8, u8, u8, u8)) {
+fn draw_centered_text(canvas: Canvas, text: &str, y: i32, size: u16, color: (u8, u8, u8, u8)) {
     DrawCommand::text_aligned(
         text,
-        SCREEN_WIDTH as i32 / 2,
+        canvas.width as i32 / 2,
         y,
         size,
         color,
@@ -231,43 +246,57 @@ fn draw_centered_text(text: &str, y: i32, size: u16, color: (u8, u8, u8, u8)) {
     .publish_with(publish);
 }
 
-fn publish_game_over() {
+fn publish_game_over(canvas: Canvas) {
+    let title_y = (u64::from(canvas.height) * 35 / 100) as i32;
+    let prompt_y = (u64::from(canvas.height) * 57 / 100) as i32;
     draw_rect(
         0,
         0,
-        SCREEN_WIDTH,
-        SCREEN_HEIGHT,
+        canvas.width,
+        canvas.height,
         true,
         GAME_OVER_BACKGROUND,
     );
     draw_centered_text(
+        canvas,
         "GAME OVER",
-        210,
+        title_y,
         GAME_OVER_TITLE_SIZE,
         GAME_OVER_TITLE_COLOR,
     );
     draw_centered_text(
+        canvas,
         GAME_OVER_PROMPT,
-        344,
+        prompt_y,
         GAME_OVER_PROMPT_SIZE,
         GAME_OVER_PROMPT_COLOR,
     );
 }
 
 pub fn publish_ui() {
-    let (screen, has_active_session, preferences, resolutions, selection) = read_ui_state();
+    let Some(snapshot) = read_ui_state() else {
+        return;
+    };
+    let UiSnapshot {
+        canvas,
+        screen,
+        has_active_session,
+        preferences,
+        resolutions,
+        selection,
+    } = snapshot;
     if screen == Screen::Gameplay {
         publish(ClearDrawBatch::TOPIC, &ClearDrawBatch.encode());
         return;
     }
     if screen == Screen::GameOver {
-        publish_game_over();
+        publish_game_over(canvas);
         return;
     }
     if !has_active_session {
-        draw_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, true, BACKDROP_COLOR);
+        draw_rect(0, 0, canvas.width, canvas.height, true, BACKDROP_COLOR);
     }
-    let layout = build_layout(screen, preferences, &resolutions);
+    let layout = build_layout(canvas, screen, preferences, &resolutions);
 
     let panel = layout.panel;
     draw_rect(
@@ -435,7 +464,13 @@ fn handle_key(key: &str) {
     }
     let action = STATE.with(|state| {
         let mut state = state.borrow_mut();
-        let layout = build_layout(state.menu.screen(), state.preferences, &state.resolutions);
+        let canvas = state.canvas?;
+        let layout = build_layout(
+            canvas,
+            state.menu.screen(),
+            state.preferences,
+            &state.resolutions,
+        );
         if let Some(delta) = navigation_delta(key) {
             state.selection.move_by(layout.buttons.len(), delta);
             None
@@ -453,9 +488,15 @@ fn handle_key(key: &str) {
 fn select_at_pointer(x: f32, y: f32) -> Option<u32> {
     STATE.with(|state| {
         let mut state = state.borrow_mut();
-        let layout = build_layout(state.menu.screen(), state.preferences, &state.resolutions);
+        let canvas = state.canvas?;
+        let layout = build_layout(
+            canvas,
+            state.menu.screen(),
+            state.preferences,
+            &state.resolutions,
+        );
         let window_size = state.window_size;
-        state.selection.hover(&layout, canvas(), x, y, window_size)
+        state.selection.hover(&layout, canvas, x, y, window_size)
     })
 }
 
@@ -497,9 +538,17 @@ pub fn handle_message(topic: &str, sender: &str, payload: &[u8]) {
             }
         }
         DisplayChanged::TOPIC => {
-            if let Ok(display) = DisplayChanged::decode(payload) {
-                STATE
-                    .with(|state| state.borrow_mut().window_size = (display.width, display.height));
+            if sender == "renderer" {
+                if let Ok(display) = DisplayChanged::decode(payload) {
+                    STATE.with(|state| {
+                        state.borrow_mut().window_size = (display.width, display.height)
+                    });
+                }
+            }
+        }
+        LogicalCanvas::TOPIC => {
+            if let Some(canvas) = decode_logical_canvas(sender, payload) {
+                STATE.with(|state| state.borrow_mut().canvas = Some(canvas));
             }
         }
         PlayerDefeated::TOPIC => {
@@ -517,6 +566,14 @@ pub fn handle_message(topic: &str, sender: &str, payload: &[u8]) {
         }
         _ => {}
     }
+}
+
+fn decode_logical_canvas(sender: &str, payload: &[u8]) -> Option<Canvas> {
+    if sender != "renderer" {
+        return None;
+    }
+    let logical = LogicalCanvas::decode(payload).ok()?;
+    (logical.width > 0 && logical.height > 0).then(|| Canvas::new(logical.width, logical.height))
 }
 
 #[cfg(test)]
@@ -557,5 +614,30 @@ mod tests {
         assert!(accept_defeat(&mut menu, "will", &PlayerDefeated.encode()));
         assert_eq!(menu.screen(), Screen::GameOver);
         assert_eq!(menu.active_level(), Some(Level::One));
+    }
+
+    #[test]
+    fn logical_canvas_accepts_only_valid_renderer_dimensions() {
+        let logical = LogicalCanvas {
+            width: 960,
+            height: 540,
+        }
+        .encode();
+        assert_eq!(
+            decode_logical_canvas("renderer", &logical),
+            Some(Canvas::new(960, 540))
+        );
+        assert_eq!(decode_logical_canvas("rogue", &logical), None);
+        assert_eq!(
+            decode_logical_canvas(
+                "renderer",
+                &LogicalCanvas {
+                    width: 0,
+                    height: 540,
+                }
+                .encode(),
+            ),
+            None
+        );
     }
 }
