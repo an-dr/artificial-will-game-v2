@@ -10,7 +10,6 @@ mod combat_state;
 mod damage_reaction;
 mod held_keys;
 mod hud;
-mod impact;
 mod player_mode;
 mod player_state;
 
@@ -23,11 +22,9 @@ use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use combat_state::{CombatState, DamageOutcome};
 use damage_reaction::DamageReaction;
 use game_messages::{
-    HitConfirmed, PauseChanged, PlayerDamaged, PlayerDefeated, RewardGranted, SessionReset,
-    WILL_ENTITY_ID,
+    PauseChanged, PlayerDamaged, PlayerDefeated, RewardGranted, SessionReset, WILL_ENTITY_ID,
 };
 use held_keys::HeldKeys;
-use impact::ImpactFeedback;
 use player_state::PlayerState;
 
 thread_local! {
@@ -35,7 +32,6 @@ thread_local! {
     static PLAYER_STATE: RefCell<PlayerState> = RefCell::new(PlayerState::default());
     static COMBAT_STATE: RefCell<CombatState> = RefCell::new(CombatState::default());
     static DAMAGE_REACTION: RefCell<DamageReaction> = RefCell::new(DamageReaction::default());
-    static IMPACT_FEEDBACK: RefCell<ImpactFeedback> = RefCell::new(ImpactFeedback::default());
     static PAUSED: Cell<bool> = const { Cell::new(false) };
 }
 
@@ -59,28 +55,18 @@ fn publish_player_stats() {
     COMBAT_STATE.with(|state| publish_message(state.borrow().stats()));
 }
 
-fn publish_game_ui() {
-    let (stats, position) = COMBAT_STATE.with(|state| {
-        let state = state.borrow();
-        (state.stats(), state.position())
+fn publish_player_tint(tint: (u8, u8, u8, u8)) {
+    publish_entity_op(EntityOp::SetSpriteTint {
+        entity_id: WILL_ENTITY_ID,
+        tint,
     });
+}
+
+fn publish_game_ui() {
+    let stats = COMBAT_STATE.with(|state| state.borrow().stats());
     for command in hud::commands(stats) {
         command.publish_with(publish);
     }
-    DAMAGE_REACTION.with(|reaction| {
-        if let Some(rectangles) = reaction.borrow().rectangles(position) {
-            for rectangle in rectangles {
-                publish_message(rectangle);
-            }
-        }
-    });
-    IMPACT_FEEDBACK.with(|feedback| {
-        if let Some(rectangles) = feedback.borrow().rectangles() {
-            for rectangle in rectangles {
-                publish_message(rectangle);
-            }
-        }
-    });
 }
 
 fn reset_state() {
@@ -88,7 +74,6 @@ fn reset_state() {
     PLAYER_STATE.with(|state| *state.borrow_mut() = PlayerState::default());
     COMBAT_STATE.with(|state| *state.borrow_mut() = CombatState::default());
     DAMAGE_REACTION.with(|reaction| *reaction.borrow_mut() = DamageReaction::default());
-    IMPACT_FEEDBACK.with(|feedback| *feedback.borrow_mut() = ImpactFeedback::default());
     PAUSED.with(|paused| paused.set(false));
 }
 
@@ -148,6 +133,7 @@ fn start_damage_reaction(message: PlayerDamaged) {
             .start(position, message.source(), facing)
     });
     publish_player_presentation();
+    publish_player_tint(DAMAGE_REACTION.with(|reaction| reaction.borrow().tint()));
 }
 
 struct Component;
@@ -169,7 +155,6 @@ impl Guest for Component {
         subscribe(EntityTransform::TOPIC);
         subscribe(PlayerDamaged::TOPIC);
         subscribe(RewardGranted::TOPIC);
-        subscribe(HitConfirmed::TOPIC);
         subscribe("core/tick");
 
         character::load_sprites();
@@ -198,17 +183,31 @@ impl Guest for Component {
             vx,
             vy,
         });
-        let presentation_changed = if reacting {
-            let recovered = DAMAGE_REACTION.with(|reaction| reaction.borrow_mut().tick(dt));
-            recovered && PLAYER_STATE.with(|state| state.borrow_mut().recover_from_damage())
+        let (presentation_changed, tint_change) = if reacting {
+            let (recovered, tint_change) = DAMAGE_REACTION.with(|reaction| {
+                let mut reaction = reaction.borrow_mut();
+                let previous = reaction.tint();
+                let recovered = reaction.tick(dt);
+                let next = reaction.tint();
+                (recovered, (previous != next).then_some(next))
+            });
+            (
+                recovered && PLAYER_STATE.with(|state| state.borrow_mut().recover_from_damage()),
+                tint_change,
+            )
         } else {
-            PLAYER_STATE.with(|state| state.borrow_mut().tick(dt, vx, vy))
+            (
+                PLAYER_STATE.with(|state| state.borrow_mut().tick(dt, vx, vy)),
+                None,
+            )
         };
+        if let Some(tint) = tint_change {
+            publish_player_tint(tint);
+        }
         if presentation_changed {
             publish_player_presentation();
         }
         COMBAT_STATE.with(|state| state.borrow_mut().tick(dt));
-        IMPACT_FEEDBACK.with(|feedback| feedback.borrow_mut().tick(dt));
         publish_game_ui();
     }
 
@@ -262,11 +261,6 @@ impl Guest for Component {
                 if let Ok(message) = RewardGranted::decode(&payload) {
                     COMBAT_STATE.with(|state| state.borrow_mut().grant(message));
                     publish_player_stats();
-                }
-            }
-            HitConfirmed::TOPIC if is_active_level(&sender) => {
-                if let Ok(message) = HitConfirmed::decode(&payload) {
-                    IMPACT_FEEDBACK.with(|feedback| feedback.borrow_mut().confirm(message));
                 }
             }
             _ => {}

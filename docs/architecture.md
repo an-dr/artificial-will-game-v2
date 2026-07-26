@@ -24,7 +24,7 @@ flowchart LR
     Will -->|"attack request"| Level
     Level -->|"damage + hit + reward"| Will
     Will -->|"defeat"| Menu
-    Will -->|"screen-space HUD + world-space impact"| Renderer
+    Will -->|"screen-space HUD"| Renderer
     GameCore["bones game-core<br/>ECS + retro physics + tilemap + camera"] -->|"gfx batches"| Renderer
     Renderer["bones renderer"] --> Window["SDL3 window"]
     Platform --> Renderer
@@ -65,10 +65,13 @@ coins, XP, derived level, and defeat signaling. It builds each melee request
 from game-core's latest authoritative Will transform; the active level selects
 at most one nearest target in the directional lane and confirms the result.
 Will renders a compact screen-space HUD through bones' theme-free `game-ui`
-primitives and a brief world-space marker after confirmation. Its bindings are
-isolated from pure state modules, and it uses bones `ObjectFacing` in cardinal
-mode to preserve v1 presentation behavior. Switching animation changes
-presentation in place and never replaces Will's transform or collider.
+primitives. Damage alternates the character sprite's tint between red and
+white while knockback runs; enemy damage feedback stays within each enemy's
+own Hurt animation instead of adding detached world-space markers. Its
+bindings are isolated from pure state modules, and it uses bones
+`ObjectFacing` in cardinal mode to preserve v1 presentation behavior.
+Switching animation or tint changes presentation in place and never replaces
+Will's transform or collider.
 
 The persistent `menu` component owns start, pause, settings, and level-selection
 screens. It renders them as screen-space rectangles and text through the game

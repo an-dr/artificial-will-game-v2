@@ -1,11 +1,11 @@
-use bones_messages::gfx::DrawRect;
 use game_messages::AttackDirection;
 
 pub const DAMAGE_REACTION_SECONDS: f32 = 0.45;
 pub const KNOCKBACK_SECONDS: f32 = 0.18;
 pub const KNOCKBACK_SPEED: f32 = 260.0;
 const FLASH_HALF_PERIOD: f32 = 0.055;
-const DAMAGE_LAYER: u8 = 244;
+pub const NORMAL_TINT: (u8, u8, u8, u8) = (255, 255, 255, 255);
+pub const DAMAGE_TINT: (u8, u8, u8, u8) = (255, 48, 58, 255);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct DamageReaction {
@@ -67,38 +67,16 @@ impl DamageReaction {
         self.remaining == 0.0
     }
 
-    pub fn rectangles(&self, position: (f32, f32)) -> Option<[DrawRect; 2]> {
-        if !self.active()
-            || !position.0.is_finite()
-            || !position.1.is_finite()
-            || ((self.remaining / FLASH_HALF_PERIOD) as u32).is_multiple_of(2)
-        {
-            return None;
+    pub fn tint(&self) -> (u8, u8, u8, u8) {
+        if !self.active() {
+            return NORMAL_TINT;
         }
-        let x = position.0.round() as i32;
-        let y = position.1.round() as i32;
-        Some([
-            DrawRect {
-                x: x - 28,
-                y: y - 30,
-                w: 4,
-                h: 60,
-                filled: true,
-                color: (255, 48, 58, 255),
-                layer: DAMAGE_LAYER,
-                screen_space: false,
-            },
-            DrawRect {
-                x: x + 24,
-                y: y - 30,
-                w: 4,
-                h: 60,
-                filled: true,
-                color: (255, 118, 124, 255),
-                layer: DAMAGE_LAYER + 1,
-                screen_space: false,
-            },
-        ])
+        let elapsed = DAMAGE_REACTION_SECONDS - self.remaining;
+        if ((elapsed / FLASH_HALF_PERIOD) as u32).is_multiple_of(2) {
+            DAMAGE_TINT
+        } else {
+            NORMAL_TINT
+        }
     }
 }
 

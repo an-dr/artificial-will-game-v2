@@ -23,19 +23,18 @@ fn coincident_or_invalid_sources_fall_back_opposite_the_facing() {
 }
 
 #[test]
-fn red_world_flash_pulses_and_reaction_completes_once() {
+fn sprite_tint_blinks_red_and_reaction_completes_once() {
     let mut reaction = DamageReaction::default();
     reaction.start((120.0, 80.0), None, AttackDirection::Right);
+    assert_eq!(reaction.tint(), DAMAGE_TINT);
     reaction.tick(FLASH_HALF_PERIOD * 1.1);
-    let [left, right] = reaction.rectangles((120.0, 80.0)).expect("visible flash");
-    assert!(!left.screen_space);
-    assert!(left.filled);
-    assert!(right.filled);
-    assert_eq!((left.x, right.x, left.y, right.y), (92, 144, 50, 50));
+    assert_eq!(reaction.tint(), NORMAL_TINT);
+    reaction.tick(FLASH_HALF_PERIOD);
+    assert_eq!(reaction.tint(), DAMAGE_TINT);
 
     assert!(reaction.tick(DAMAGE_REACTION_SECONDS));
     assert!(!reaction.active());
-    assert_eq!(reaction.rectangles((120.0, 80.0)), None);
+    assert_eq!(reaction.tint(), NORMAL_TINT);
     assert!(!reaction.tick(1.0));
 }
 

@@ -370,6 +370,11 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
                 )
             })
     }));
+    assert!(!captured.lock().unwrap().iter().any(|event| {
+        event.sender == "will"
+            && event.topic == DrawRect::TOPIC
+            && DrawRect::decode(&event.payload).is_ok_and(|rectangle| !rectangle.screen_space)
+    }));
     captured.lock().unwrap().clear();
 
     attack_slime(&mut built, 201);
@@ -438,14 +443,22 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
                     )
                 })
         }));
-        assert!(events.iter().any(|event| {
+        assert!(!events.iter().any(|event| {
             event.sender == "will"
                 && event.topic == DrawRect::TOPIC
-                && DrawRect::decode(&event.payload).is_ok_and(|rectangle| {
-                    !rectangle.screen_space
-                        && rectangle.color.0 == 255
-                        && rectangle.color.1 < 100
-                        && rectangle.layer >= 244
+                && DrawRect::decode(&event.payload).is_ok_and(|rectangle| !rectangle.screen_space)
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "will"
+                && event.topic == EntityOpMessage::TOPIC
+                && EntityOpMessage::decode(&event.payload).is_ok_and(|message| {
+                    matches!(
+                        message.0,
+                        EntityOp::SetSpriteTint {
+                            entity_id: 1,
+                            tint: (255, 48, 58, 255)
+                        }
+                    )
                 })
         }));
         assert!(events.iter().any(|event| {

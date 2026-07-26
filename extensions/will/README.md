@@ -14,8 +14,9 @@ Press Space to play Will's facing-dependent attack once; movement continues
 during the attack while its facing remains fixed. A swing targets one nearby
 object in its forward lane. Will owns three session lives, brief damage
 invulnerability, coins, XP, and the derived level (one level per three XP).
-Its compact game-rendered HUD stays below menu overlays, and a world-space
-marker appears only when a level confirms a hit.
+Its compact game-rendered HUD stays below menu overlays. Damage blinks Will's
+own sprite red while preserving knockback; confirmed enemy hits rely on the
+target's Hurt animation instead of a detached marker.
 
 Build from the parent extension workspace:
 
