@@ -82,10 +82,12 @@ right-facing side sheet is mirrored.
 Level One preserves the original grass map and pushable boxes. Each box breaks
 in one hit and contains a deterministic coin reward. Level Two is an overgrown
 ruin with mixed grass and broken-stone ground, illustrated fixed rock
-obstacles, and six animated slimes. Nearby slimes pursue Will, deal contact
-damage, take two hits, and award one XP on defeat. Every three XP increases
-Will's displayed level. Losing the last life transactionally restarts the
-current level.
+obstacles, and six animated slimes. Slimes proactively pursue Will inside
+their awareness radius, stop before contact, and deal damage only when their
+visible attack animation reaches its strike frame. The wind-up can be escaped
+or interrupted; touching a slime by itself is harmless. Slimes take two hits
+and award one XP on defeat. Every three XP increases Will's displayed level.
+Losing the last life transactionally restarts the current level.
 
 ## Testing a self-contained build
 

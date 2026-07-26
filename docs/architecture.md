@@ -51,10 +51,13 @@ health through game-core operations. Level One preserves the original grass
 field and pushable boxes; boxes track their authoritative moved positions,
 break in one hit, and award deterministic coins. Level Two supplies mixed
 grass and broken-stone ruins, illustrated fixed rock obstacles, and
-idle-animated slime colliders. Slimes pursue Will only inside a bounded
-awareness radius, deal damage on contact starts, take two hits, and award XP
-only on death. Dead entities leave targeting, motion, and contact behavior
-before their idempotent game-core despawn is published.
+idle-animated slime colliders. Slimes proactively pursue Will inside a bounded
+awareness radius, stop at melee range, and deal damage once at the strike point
+of a visible attack animation rather than on contact. Escaping the strike range
+or hurting the slime during wind-up cancels that impact; a cooldown separates
+attacks. Slimes take two hits and award XP only on death. Dead entities leave
+targeting, motion, and attack behavior before their idempotent game-core
+despawn is published.
 
 The `will` component owns character assets and spawning, held controls, the
 idle/walk/attack state machine, three session lives, damage invulnerability,

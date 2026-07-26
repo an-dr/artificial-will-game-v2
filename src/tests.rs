@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use bones_messages::game_core::{EntityOp, EntityOpMessage};
+use bones_messages::game_core::{Collision, EntityOp, EntityOpMessage};
 use bones_messages::gfx::{DrawRect, DrawSprite, DrawText};
 use bones_messages::input::KeyDown;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
@@ -519,4 +519,86 @@ fn combat_rewards_hud_and_defeat_restart_flow_across_extensions() {
         .registry
         .call("test", "level_two", &[])
         .is_ok());
+}
+
+#[test]
+fn slime_contact_is_harmless_and_a_timed_attack_deals_damage() {
+    let saves = SavesDir::create("slime-attack");
+    let extensions = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("extensions/target/wasm32-wasip2/release");
+    let mut built = runner::Engine::new()
+        .extensions_dir(extensions)
+        .startup_extension("menu")
+        .extension_controller("menu")
+        .saves_dir(saves.0.clone())
+        .module(game_core::GameCore::new())
+        .build()
+        .unwrap();
+
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let sink = Arc::clone(&captured);
+    let spy = built
+        .runner
+        .bus()
+        .register("slime-attack-test", move |event: &Envelope| {
+            sink.lock().unwrap().push(event.clone());
+        });
+    for topic in ["game/*", "game-core/*"] {
+        spy.subscribe(topic);
+    }
+
+    pump(&mut built, 2);
+    press(&mut built, "Return");
+    press(&mut built, "Down");
+    press(&mut built, "Return");
+    pump(&mut built, 5);
+    assert!(built
+        .supervisor
+        .registry
+        .call("test", "level_two", &[])
+        .is_ok());
+
+    captured.lock().unwrap().clear();
+    publish_message(
+        &mut built,
+        "game-core",
+        Collision {
+            entity_id_a: 1,
+            entity_id_b: 201,
+        },
+    );
+    pump(&mut built, 2);
+    assert!(!captured
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|event| { event.sender == "level_two" && event.topic == PlayerDamaged::TOPIC }));
+
+    captured.lock().unwrap().clear();
+    pump(&mut built, 100);
+    let events = captured.lock().unwrap();
+    assert!(events.iter().any(|event| {
+        event.sender == "level_two"
+            && event.topic == EntityOpMessage::TOPIC
+            && EntityOpMessage::decode(&event.payload).is_ok_and(|message| {
+                matches!(
+                    message.0,
+                    EntityOp::SetSprite { presentation, .. }
+                        if (36..=38).contains(&presentation.sprite.sprite_id)
+                )
+            })
+    }));
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| { event.sender == "level_two" && event.topic == PlayerDamaged::TOPIC })
+            .filter_map(|event| PlayerDamaged::decode(&event.payload).ok())
+            .count(),
+        1
+    );
+    assert!(events.iter().any(|event| {
+        event.sender == "will"
+            && event.topic == PlayerStats::TOPIC
+            && PlayerStats::decode(&event.payload).is_ok_and(|stats| stats.lives == 2)
+    }));
 }
