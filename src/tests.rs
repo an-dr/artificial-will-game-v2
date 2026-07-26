@@ -528,8 +528,14 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
         assert!(events.iter().any(|event| {
             event.sender == "menu"
                 && event.topic == DrawText::TOPIC
-                && DrawText::decode(&event.payload)
-                    .is_ok_and(|text| text.screen_space && text.text == "GAME OVER")
+                && DrawText::decode(&event.payload).is_ok_and(|text| {
+                    text.screen_space
+                        && text.text == "GAME OVER"
+                        && text.size >= 48
+                        && text.color.0 == 255
+                        && text.color.1 < 80
+                        && text.color.2 < 80
+                })
         }));
         assert!(events.iter().any(|event| {
             event.sender == "menu"
@@ -540,7 +546,16 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
             event.sender == "menu"
                 && event.topic == DrawText::TOPIC
                 && DrawText::decode(&event.payload)
-                    .is_ok_and(|text| text.screen_space && text.text == "Press Enter to Main Menu")
+                    .is_ok_and(|text| text.screen_space && text.text == "PRESS ENTER TO MAIN MENU")
+        }));
+        assert!(events.iter().any(|event| {
+            event.sender == "menu"
+                && event.topic == DrawRect::TOPIC
+                && DrawRect::decode(&event.payload).is_ok_and(|rectangle| {
+                    rectangle.screen_space
+                        && (rectangle.x, rectangle.y, rectangle.w, rectangle.h) == (0, 0, 800, 600)
+                        && rectangle.color == (0, 0, 0, 255)
+                })
         }));
     }
     assert!(built.supervisor.registry.call("test", "will", &[]).is_ok());

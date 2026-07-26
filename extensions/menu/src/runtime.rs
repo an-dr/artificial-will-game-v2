@@ -34,6 +34,12 @@ const TITLE_COLOR: (u8, u8, u8, u8) = (235, 248, 255, 255);
 const SUBTITLE_COLOR: (u8, u8, u8, u8) = (145, 178, 195, 255);
 const BUTTON_COLOR: (u8, u8, u8, u8) = (34, 52, 78, 255);
 const SELECTED_COLOR: (u8, u8, u8, u8) = (45, 132, 160, 255);
+const GAME_OVER_BACKGROUND: (u8, u8, u8, u8) = (0, 0, 0, 255);
+const GAME_OVER_TITLE_COLOR: (u8, u8, u8, u8) = (255, 42, 52, 255);
+const GAME_OVER_PROMPT_COLOR: (u8, u8, u8, u8) = (205, 210, 216, 255);
+const GAME_OVER_TITLE_SIZE: u16 = 64;
+const GAME_OVER_PROMPT_SIZE: u16 = 18;
+const GAME_OVER_PROMPT: &str = "PRESS ENTER TO MAIN MENU";
 
 // `State` stays here because it is only the component adapter's thread-local
 // storage and has no identity outside this file.
@@ -212,6 +218,36 @@ fn draw_text(text: &str, x: i32, y: i32, size: u16, color: (u8, u8, u8, u8)) {
     DrawCommand::text(text, x, y, size, color, MENU_LAYER).publish_with(publish);
 }
 
+fn centered_text_x(text: &str, size: u16) -> i32 {
+    let estimated_width = text.chars().count() as i32 * i32::from(size) * 3 / 5;
+    (SCREEN_WIDTH as i32 - estimated_width) / 2
+}
+
+fn publish_game_over() {
+    draw_rect(
+        0,
+        0,
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
+        true,
+        GAME_OVER_BACKGROUND,
+    );
+    draw_text(
+        "GAME OVER",
+        centered_text_x("GAME OVER", GAME_OVER_TITLE_SIZE),
+        210,
+        GAME_OVER_TITLE_SIZE,
+        GAME_OVER_TITLE_COLOR,
+    );
+    draw_text(
+        GAME_OVER_PROMPT,
+        centered_text_x(GAME_OVER_PROMPT, GAME_OVER_PROMPT_SIZE),
+        344,
+        GAME_OVER_PROMPT_SIZE,
+        GAME_OVER_PROMPT_COLOR,
+    );
+}
+
 pub fn publish_ui() {
     let (screen, has_active_session, preferences, resolutions, selection) = read_ui_state();
     if screen == Screen::Gameplay {
@@ -219,6 +255,10 @@ pub fn publish_ui() {
         // Replace the prior menu with one invisible command so gameplay
         // cannot inherit the level-selection or pause overlay.
         draw_rect(0, 0, 1, 1, true, (0, 0, 0, 0));
+        return;
+    }
+    if screen == Screen::GameOver {
+        publish_game_over();
         return;
     }
     if !has_active_session {

@@ -39,10 +39,11 @@ stateDiagram-v2
 ```
 
 Start provides Start, Settings, and Quit. Pause provides Resume, Settings,
-Level Selection, Main Menu, and Quit. Game Over pauses the finished session and
-prompts for Enter to return to Start. The menu draws game-native screen-space
-graphics through the renderer and handles mouse hit-testing plus arrow/WASD
-selection and Enter/Space activation directly from the input bus.
+Level Selection, Main Menu, and Quit. Game Over replaces the scene with a
+black screen, a large red title, and an Enter prompt to return to Start. The
+menu draws game-native screen-space graphics through the renderer and handles
+mouse hit-testing plus arrow/WASD selection and Enter/Space activation
+directly from the input bus.
 
 ## Session transitions
 
