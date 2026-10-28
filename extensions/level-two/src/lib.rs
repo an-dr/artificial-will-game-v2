@@ -16,63 +16,17 @@ use bones_messages::game_core::{
 };
 use bones_messages::gfx::LoadSprite;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
+use game_assets::{CAINOS_TOP_DOWN_BASIC, CRAFTPIX_SLIMES};
 use game_messages::{AttackRequested, PauseChanged, PlayerDamaged, WILL_ENTITY_ID, WILL_SPAWN};
 use slime_state::{
     SlimeAnimation, SlimeField, SlimeSpawn, SlimeVisual, SLIME_COLLIDER_HALF_H,
     SLIME_COLLIDER_HALF_W,
 };
+use sprite_sheet::AssetPack;
 
 const LEVEL_TWO_TMX: &[u8] = include_bytes!("../assets/level-two.tmx");
-const GRASS_PNG: &[u8] = include_bytes!(
-    "../../../assets/Pixel Art Top Down - Basic v1.2.3/Texture/TX Tileset Grass.png"
-);
 const ROCK_CLUSTER_PNG: &[u8] = include_bytes!("../assets/rock-cluster.png");
 const BOULDER_PNG: &[u8] = include_bytes!("../assets/boulder.png");
-const SLIME_ONE_IDLE_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Idle_with_shadow.png"
-);
-const SLIME_TWO_IDLE_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Idle_with_shadow.png"
-);
-const SLIME_THREE_IDLE_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Idle_with_shadow.png"
-);
-const SLIME_ONE_WALK_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Walk_with_shadow.png"
-);
-const SLIME_TWO_WALK_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Walk_with_shadow.png"
-);
-const SLIME_THREE_WALK_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Walk_with_shadow.png"
-);
-const SLIME_ONE_ATTACK_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Attack_with_shadow.png"
-);
-const SLIME_TWO_ATTACK_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Attack_with_shadow.png"
-);
-const SLIME_THREE_ATTACK_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Attack_with_shadow.png"
-);
-const SLIME_ONE_HURT_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Hurt_with_shadow.png"
-);
-const SLIME_TWO_HURT_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Hurt_with_shadow.png"
-);
-const SLIME_THREE_HURT_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Hurt_with_shadow.png"
-);
-const SLIME_ONE_DEATH_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime1/With_shadow/Slime1_Death_with_shadow.png"
-);
-const SLIME_TWO_DEATH_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime2/With_shadow/Slime2_Death_with_shadow.png"
-);
-const SLIME_THREE_DEATH_PNG: &[u8] = include_bytes!(
-    "../../../assets/craftpix-net-788364-free-slime-mobs-pixel-art-top-down-sprite-pack/PNG/Slime3/With_shadow/Slime3_Death_with_shadow.png"
-);
 
 const GRASS_SPRITE_ID: u32 = 20;
 const ROCK_CLUSTER_SPRITE_ID: u32 = 21;
@@ -83,7 +37,6 @@ const SLIME_ATTACK_SPRITE_IDS: [u32; 3] = [36, 37, 38];
 const SLIME_HURT_SPRITE_IDS: [u32; 3] = [39, 40, 41];
 const SLIME_DEATH_SPRITE_IDS: [u32; 3] = [42, 43, 44];
 const ROCK_FRAME_SIZE: u32 = 128;
-const SLIME_FRAME_SIZE: u32 = 64;
 const ROCK_ID_START: u32 = 100;
 const SLIME_ID_START: u32 = 200;
 
@@ -125,6 +78,8 @@ const SLIMES: &[SlimeSpawn] = &[
 ];
 
 thread_local! {
+    static SLIME_PACK: AssetPack =
+        CRAFTPIX_SLIMES.pack().expect("the CraftPix slime manifest parses");
     static SLIME_FIELD: RefCell<SlimeField> =
         RefCell::new(SlimeField::new(SLIME_ID_START, SLIMES, WILL_SPAWN));
 }
@@ -171,7 +126,9 @@ fn load_ruins_map() {
             tileset_images: vec![TilesetImage {
                 name: "grass",
                 sprite_id: GRASS_SPRITE_ID,
-                png_bytes: GRASS_PNG,
+                png_bytes: CAINOS_TOP_DOWN_BASIC
+                    .image_bytes("grass_tileset")
+                    .expect("grass tileset is declared in the Cainos pack"),
             }],
         }
         .encode(),
@@ -229,62 +186,61 @@ fn spawn_rocks() {
     }
 }
 
-fn slime_sheet(sprite_set: usize, animation: SlimeAnimation) -> (u32, u32, f32, bool) {
-    let (ids, frame_counts, frame_duration, looping) = match animation {
-        SlimeAnimation::Idle => (&SLIME_IDLE_SPRITE_IDS, [6, 6, 6], 0.16, true),
-        SlimeAnimation::Walk => (&SLIME_WALK_SPRITE_IDS, [8, 8, 8], 0.10, true),
-        SlimeAnimation::Attack => (&SLIME_ATTACK_SPRITE_IDS, [10, 11, 9], 0.08, false),
-        SlimeAnimation::Hurt => (&SLIME_HURT_SPRITE_IDS, [5, 5, 5], 0.08, false),
-        SlimeAnimation::Death => (&SLIME_DEATH_SPRITE_IDS, [10, 10, 10], 0.08, false),
+/// Every slime sheet in the CraftPix pack plays its first (down-facing) row.
+const SLIME_SHEET_ANIMATION: &str = "down";
+/// 1.5x the 64 px CraftPix frame, so slimes read next to the 64 px robot.
+const SLIME_DRAW_SIZE: [u32; 2] = [96, 96];
+
+fn slime_sheet_id(sprite_set: usize, animation: SlimeAnimation) -> (String, u32) {
+    let (name, ids) = match animation {
+        SlimeAnimation::Idle => ("idle", &SLIME_IDLE_SPRITE_IDS),
+        SlimeAnimation::Walk => ("walk", &SLIME_WALK_SPRITE_IDS),
+        SlimeAnimation::Attack => ("attack", &SLIME_ATTACK_SPRITE_IDS),
+        SlimeAnimation::Hurt => ("hurt", &SLIME_HURT_SPRITE_IDS),
+        SlimeAnimation::Death => ("death", &SLIME_DEATH_SPRITE_IDS),
     };
-    (
-        ids[sprite_set],
-        frame_counts[sprite_set],
-        frame_duration,
-        looping,
-    )
+    (format!("slime{}_{name}", sprite_set + 1), ids[sprite_set])
 }
 
 fn slime_presentation(sprite_set: usize, animation: SlimeAnimation) -> SpritePresentation {
-    let (sprite_id, frame_count, frame_duration, looping) = slime_sheet(sprite_set, animation);
-    SpritePresentation {
-        sprite: Sprite {
-            sprite_id,
-            frame_w: SLIME_FRAME_SIZE,
-            frame_h: SLIME_FRAME_SIZE,
-            frame_count,
-            frame_duration,
-        },
-        frames_per_row: frame_count,
-        draw_w: SLIME_FRAME_SIZE,
-        draw_h: SLIME_FRAME_SIZE,
-        looping,
-        advance_while_stopped: true,
-        flip_h: false,
-        flip_v: false,
-    }
+    let (sheet_id, sprite_id) = slime_sheet_id(sprite_set, animation);
+    SLIME_PACK.with(|pack| {
+        pack.sheet(&sheet_id)
+            .and_then(|sheet| sheet.presentation(SLIME_SHEET_ANIMATION, sprite_id, SLIME_DRAW_SIZE))
+            .unwrap_or_else(|error| panic!("slime sheet `{sheet_id}`: {error}"))
+    })
 }
 
 fn load_slime_sprites() {
-    for (id, png_bytes) in [
-        (SLIME_IDLE_SPRITE_IDS[0], SLIME_ONE_IDLE_PNG),
-        (SLIME_IDLE_SPRITE_IDS[1], SLIME_TWO_IDLE_PNG),
-        (SLIME_IDLE_SPRITE_IDS[2], SLIME_THREE_IDLE_PNG),
-        (SLIME_WALK_SPRITE_IDS[0], SLIME_ONE_WALK_PNG),
-        (SLIME_WALK_SPRITE_IDS[1], SLIME_TWO_WALK_PNG),
-        (SLIME_WALK_SPRITE_IDS[2], SLIME_THREE_WALK_PNG),
-        (SLIME_ATTACK_SPRITE_IDS[0], SLIME_ONE_ATTACK_PNG),
-        (SLIME_ATTACK_SPRITE_IDS[1], SLIME_TWO_ATTACK_PNG),
-        (SLIME_ATTACK_SPRITE_IDS[2], SLIME_THREE_ATTACK_PNG),
-        (SLIME_HURT_SPRITE_IDS[0], SLIME_ONE_HURT_PNG),
-        (SLIME_HURT_SPRITE_IDS[1], SLIME_TWO_HURT_PNG),
-        (SLIME_HURT_SPRITE_IDS[2], SLIME_THREE_HURT_PNG),
-        (SLIME_DEATH_SPRITE_IDS[0], SLIME_ONE_DEATH_PNG),
-        (SLIME_DEATH_SPRITE_IDS[1], SLIME_TWO_DEATH_PNG),
-        (SLIME_DEATH_SPRITE_IDS[2], SLIME_THREE_DEATH_PNG),
-    ] {
-        publish(LoadSprite::TOPIC, &LoadSprite { id, png_bytes }.encode());
-    }
+    const ANIMATIONS: [SlimeAnimation; 5] = [
+        SlimeAnimation::Idle,
+        SlimeAnimation::Walk,
+        SlimeAnimation::Attack,
+        SlimeAnimation::Hurt,
+        SlimeAnimation::Death,
+    ];
+    SLIME_PACK.with(|pack| {
+        for sprite_set in 0..SLIME_IDLE_SPRITE_IDS.len() {
+            for animation in ANIMATIONS {
+                let (sheet_id, id) = slime_sheet_id(sprite_set, animation);
+                let strip = pack
+                    .sheet(&sheet_id)
+                    .and_then(|sheet| {
+                        let png = CRAFTPIX_SLIMES.file(&sheet.image)?;
+                        sheet.cut_strip(png, SLIME_SHEET_ANIMATION, (0, 0))
+                    })
+                    .unwrap_or_else(|error| panic!("slime sheet `{sheet_id}`: {error}"));
+                publish(
+                    LoadSprite::TOPIC,
+                    &LoadSprite {
+                        id,
+                        png_bytes: &strip,
+                    }
+                    .encode(),
+                );
+            }
+        }
+    });
 }
 
 fn spawn_slimes() {

@@ -1,0 +1,233 @@
+{
+  "name": "Free Slime Mobs Pixel Art Top-Down Sprite Pack",
+  "author": "CraftPix.net",
+  "source": "https://craftpix.net (download id 788364)",
+  "license": "upstream/License.txt",
+  "sheets": {
+    "slime1_idle": {
+      "image": "upstream/PNG/Slime1/With_shadow/Slime1_Idle_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6.25,
+          "loop": true
+        }
+      }
+    },
+    "slime1_walk": {
+      "image": "upstream/PNG/Slime1/With_shadow/Slime1_Walk_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 8,
+          "fps": 10,
+          "loop": true
+        }
+      }
+    },
+    "slime1_attack": {
+      "image": "upstream/PNG/Slime1/With_shadow/Slime1_Attack_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 10,
+          "fps": 12.5,
+          "loop": false
+        }
+      }
+    },
+    "slime1_hurt": {
+      "image": "upstream/PNG/Slime1/With_shadow/Slime1_Hurt_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 5,
+          "fps": 12.5,
+          "loop": false
+        }
+      }
+    },
+    "slime1_death": {
+      "image": "upstream/PNG/Slime1/With_shadow/Slime1_Death_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 10,
+          "fps": 12.5,
+          "loop": false
+        }
+      }
+    },
+    "slime2_idle": {
+      "image": "upstream/PNG/Slime2/With_shadow/Slime2_Idle_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6.25,
+          "loop": true
+        }
+      }
+    },
+    "slime2_walk": {
+      "image": "upstream/PNG/Slime2/With_shadow/Slime2_Walk_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 8,
+          "fps": 10,
+          "loop": true
+        }
+      }
+    },
+    "slime2_attack": {
+      "image": "upstream/PNG/Slime2/With_shadow/Slime2_Attack_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 11,
+          "fps": 12.5,
+          "loop": false
+        }
+      }
+    },
+    "slime2_hurt": {
+      "image": "upstream/PNG/Slime2/With_shadow/Slime2_Hurt_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 5,
+          "fps": 12.5,
+          "loop": false
+        }
+      }
+    },
+    "slime2_death": {
+      "image": "upstream/PNG/Slime2/With_shadow/Slime2_Death_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 10,
+          "fps": 12.5,
+          "loop": false
+        }
+      }
+    },
+    "slime3_idle": {
+      "image": "upstream/PNG/Slime3/With_shadow/Slime3_Idle_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6.25,
+          "loop": true
+        }
+      }
+    },
+    "slime3_walk": {
+      "image": "upstream/PNG/Slime3/With_shadow/Slime3_Walk_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 8,
+          "fps": 10,
+          "loop": true
+        }
+      }
+    },
+    "slime3_attack": {
+      "image": "upstream/PNG/Slime3/With_shadow/Slime3_Attack_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 9,
+          "fps": 12.5,
+          "loop": false
+        }
+      }
+    },
+    "slime3_hurt": {
+      "image": "upstream/PNG/Slime3/With_shadow/Slime3_Hurt_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 5,
+          "fps": 12.5,
+          "loop": false
+        }
+      }
+    },
+    "slime3_death": {
+      "image": "upstream/PNG/Slime3/With_shadow/Slime3_Death_with_shadow.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "animations": {
+        "down": {
+          "row": 0,
+          "frames": 10,
+          "fps": 12.5,
+          "loop": false
+        }
+      }
+    }
+  }
+}

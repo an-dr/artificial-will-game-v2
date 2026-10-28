@@ -1,25 +1,10 @@
-use bones_messages::game_core::{ObjectFacing, Sprite, SpritePresentation};
+use bones_messages::game_core::ObjectFacing;
 use game_messages::AttackDirection;
 
 use crate::player_mode::PlayerMode;
 
-pub const IDLE_DOWN_SPRITE_ID: u32 = 1;
-pub const IDLE_UP_SPRITE_ID: u32 = 4;
-pub const IDLE_SIDE_SPRITE_ID: u32 = 5;
-pub const WALK_DOWN_SPRITE_ID: u32 = 6;
-pub const WALK_UP_SPRITE_ID: u32 = 7;
-pub const WALK_SIDE_SPRITE_ID: u32 = 8;
-pub const ATTACK_DOWN_SPRITE_ID: u32 = 9;
-pub const ATTACK_UP_SPRITE_ID: u32 = 10;
-pub const ATTACK_SIDE_SPRITE_ID: u32 = 11;
-
-const FRAME_SIZE: u32 = 64;
-const DRAW_SIZE: u32 = 128;
-const FRAMES_PER_ROW: u32 = 4;
-const FRAME_DURATION_SECONDS: f32 = 0.125;
-const LOOPING_FRAME_COUNT: u32 = 5;
-const ATTACK_FRAME_COUNT: u32 = 2;
-const ATTACK_DURATION_SECONDS: f32 = FRAME_DURATION_SECONDS * ATTACK_FRAME_COUNT as f32;
+/// William's attack: four frames at 12 fps (`attack_*` in the sheet).
+pub const ATTACK_DURATION_SECONDS: f32 = 4.0 / 12.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlayerState {
@@ -109,78 +94,27 @@ impl PlayerState {
         true
     }
 
-    pub fn presentation(&self) -> SpritePresentation {
-        let attacking = self.mode == PlayerMode::Attacking;
-        let sprite_id = match (self.mode, self.facing) {
-            (PlayerMode::Idle, ObjectFacing::Down) => IDLE_DOWN_SPRITE_ID,
-            (PlayerMode::Idle, ObjectFacing::Up) => IDLE_UP_SPRITE_ID,
-            (
-                PlayerMode::Idle,
-                ObjectFacing::Left
-                | ObjectFacing::Right
-                | ObjectFacing::UpLeft
-                | ObjectFacing::UpRight
-                | ObjectFacing::DownLeft
-                | ObjectFacing::DownRight,
-            ) => IDLE_SIDE_SPRITE_ID,
-            (PlayerMode::Moving, ObjectFacing::Down) => WALK_DOWN_SPRITE_ID,
-            (PlayerMode::Moving, ObjectFacing::Up) => WALK_UP_SPRITE_ID,
-            (
-                PlayerMode::Moving,
-                ObjectFacing::Left
-                | ObjectFacing::Right
-                | ObjectFacing::UpLeft
-                | ObjectFacing::UpRight
-                | ObjectFacing::DownLeft
-                | ObjectFacing::DownRight,
-            ) => WALK_SIDE_SPRITE_ID,
-            (PlayerMode::Attacking, ObjectFacing::Down) => ATTACK_DOWN_SPRITE_ID,
-            (PlayerMode::Attacking, ObjectFacing::Up) => ATTACK_UP_SPRITE_ID,
-            (
-                PlayerMode::Attacking,
-                ObjectFacing::Left
-                | ObjectFacing::Right
-                | ObjectFacing::UpLeft
-                | ObjectFacing::UpRight
-                | ObjectFacing::DownLeft
-                | ObjectFacing::DownRight,
-            ) => ATTACK_SIDE_SPRITE_ID,
-            (PlayerMode::Damaged, ObjectFacing::Down) => IDLE_DOWN_SPRITE_ID,
-            (PlayerMode::Damaged, ObjectFacing::Up) => IDLE_UP_SPRITE_ID,
-            (
-                PlayerMode::Damaged,
-                ObjectFacing::Left
-                | ObjectFacing::Right
-                | ObjectFacing::UpLeft
-                | ObjectFacing::UpRight
-                | ObjectFacing::DownLeft
-                | ObjectFacing::DownRight,
-            ) => IDLE_SIDE_SPRITE_ID,
-        };
-        SpritePresentation {
-            sprite: Sprite {
-                sprite_id,
-                frame_w: FRAME_SIZE,
-                frame_h: FRAME_SIZE,
-                frame_count: if attacking {
-                    ATTACK_FRAME_COUNT
-                } else if self.mode == PlayerMode::Damaged {
-                    1
-                } else {
-                    LOOPING_FRAME_COUNT
-                },
-                frame_duration: FRAME_DURATION_SECONDS,
-            },
-            frames_per_row: FRAMES_PER_ROW,
-            draw_w: DRAW_SIZE,
-            draw_h: DRAW_SIZE,
-            looping: !matches!(self.mode, PlayerMode::Attacking | PlayerMode::Damaged),
-            advance_while_stopped: true,
-            flip_h: matches!(
-                self.facing,
-                ObjectFacing::Right | ObjectFacing::UpRight | ObjectFacing::DownRight
-            ),
-            flip_v: false,
+    /// The sheet animation for the current mode and facing; diagonals use
+    /// the side the character is turned to.
+    pub fn animation(&self) -> &'static str {
+        use ObjectFacing::{Down, DownLeft, DownRight, Left, Right, Up, UpLeft, UpRight};
+        match (self.mode, self.facing) {
+            (PlayerMode::Idle, Down) => "idle_down",
+            (PlayerMode::Idle, Up) => "idle_up",
+            (PlayerMode::Idle, Left | UpLeft | DownLeft) => "idle_left",
+            (PlayerMode::Idle, Right | UpRight | DownRight) => "idle_right",
+            (PlayerMode::Moving, Down) => "walk_down",
+            (PlayerMode::Moving, Up) => "walk_up",
+            (PlayerMode::Moving, Left | UpLeft | DownLeft) => "walk_left",
+            (PlayerMode::Moving, Right | UpRight | DownRight) => "walk_right",
+            (PlayerMode::Attacking, Down) => "attack_down",
+            (PlayerMode::Attacking, Up) => "attack_up",
+            (PlayerMode::Attacking, Left | UpLeft | DownLeft) => "attack_left",
+            (PlayerMode::Attacking, Right | UpRight | DownRight) => "attack_right",
+            (PlayerMode::Damaged, Down) => "hurt_down",
+            (PlayerMode::Damaged, Up) => "hurt_up",
+            (PlayerMode::Damaged, Left | UpLeft | DownLeft) => "hurt_left",
+            (PlayerMode::Damaged, Right | UpRight | DownRight) => "hurt_right",
         }
     }
 }

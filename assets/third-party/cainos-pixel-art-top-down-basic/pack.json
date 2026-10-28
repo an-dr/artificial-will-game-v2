@@ -1,0 +1,9 @@
+{
+  "name": "Pixel Art Top Down - Basic v1.2.3",
+  "author": "Cainos",
+  "source": "https://docs.cainos.net/pixel-art-top-down-basic",
+  "license": "https://docs.cainos.net/pixel-art-top-down-basic",
+  "images": {
+    "grass_tileset": "upstream/Texture/TX Tileset Grass.png"
+  }
+}

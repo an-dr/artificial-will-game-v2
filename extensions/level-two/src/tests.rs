@@ -54,8 +54,8 @@ fn hostile_slimes_start_clear_of_will_and_rocks() {
     let will_spawn = WILL_SPAWN;
     for slime in SLIMES {
         assert!(
-            (will_spawn.0 - slime.x).abs() > SLIME_COLLIDER_HALF_W + 10.0
-                || (will_spawn.1 - slime.y).abs() > SLIME_COLLIDER_HALF_H + 27.0
+            (will_spawn.0 - slime.x).abs() > SLIME_COLLIDER_HALF_W + 20.0
+                || (will_spawn.1 - slime.y).abs() > SLIME_COLLIDER_HALF_H + 28.0
         );
         assert!(ROCKS.iter().all(|rock| {
             (rock.x - slime.x).abs() > rock.half_w + SLIME_COLLIDER_HALF_W

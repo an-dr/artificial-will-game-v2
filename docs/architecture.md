@@ -60,7 +60,7 @@ targeting, motion, and attack behavior before their idempotent game-core
 despawn is published.
 
 The `will` component owns character assets and spawning, held controls, the
-idle/walk/attack state machine, three session lives, damage invulnerability,
+idle/walk/attack/hurt state machine, three session lives, damage invulnerability,
 coins, XP, derived level, and defeat signaling. It builds each melee request
 from game-core's latest authoritative Will transform; the active level selects
 at most one nearest target in the directional lane and confirms the result.
@@ -104,8 +104,21 @@ cross-session progression remain out of scope.
 
 ## Assets and packaging
 
-The repository-level `assets/` directory is a byte-for-byte copy of every
-asset tracked by v1, including upstream license and source-package files.
+The repository-level `assets/` directory separates our art from licensed
+third-party packs. `assets/william/` holds Will's TV-robot sprite sheet (PNG
+plus its JSON frame description and the generator script) and `assets/box.png`
+is our own. Each third-party pack lives in
+`assets/third-party/<pack>/`: `upstream/` keeps the pack exactly as
+downloaded, and the sibling `pack.json` records its name, author, source, and
+license and gives every asset the game uses a stable id, with frame data for
+animated sheets. The `game-assets` crate embeds those manifests and only the
+files they name; levels ask it for assets by id, never by upstream path.
+
+Sheets are read by the `sprite-sheet` crate, which parses the frame
+description and cuts each animation into the single-row strip bones can play.
+It is shaped to move into `vendor/bones/shared/` once bones draws source
+rectangles itself; `TECHDEBT.md` records that upgrade.
+
 `cargo build` also builds the WASM workspace. `cargo xtask dist` selects the
 workspace's current `cdylib` targets and validated distribution groups from
 Cargo metadata. It produces the executable with

@@ -2,7 +2,9 @@
 
 One Cargo workspace containing the WASM extensions (game logic loaded by
 [bones](../vendor/bones) at runtime) and their small shared
-`game-messages` library. Sharing a workspace means one `target/`, so building
+libraries: `game-messages`, [sprite-sheet](sprite-sheet) (sheet and pack
+manifest parsing), and [game-assets](game-assets) (the embedded third-party
+packs). Sharing a workspace means one `target/`, so building
 every extension is one command with a predictable output directory — no
 per-extension build step, no copying `.wasm` files into place:
 

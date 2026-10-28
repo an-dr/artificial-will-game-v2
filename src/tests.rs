@@ -482,8 +482,8 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
                         EntityOp::SetSprite {
                             entity_id: 1,
                             presentation
-                        } if presentation.sprite.sprite_id == 1
-                            && presentation.sprite.frame_count == 5
+                        } if (50..=53).contains(&presentation.sprite.sprite_id)
+                            && presentation.sprite.frame_count == 2
                             && presentation.looping
                     )
                 })

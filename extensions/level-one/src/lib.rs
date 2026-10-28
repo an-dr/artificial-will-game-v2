@@ -17,12 +17,10 @@ use bones_messages::game_core::{
 use bones_messages::gfx::LoadSprite;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
 use box_state::{BoxField, BoxSpawn, BOX_HALF_H, BOX_HALF_W};
+use game_assets::CAINOS_TOP_DOWN_BASIC;
 use game_messages::{AttackRequested, WILL_ENTITY_ID};
 
 const LEVEL_ONE_TMX: &[u8] = include_bytes!("../assets/level-one.tmx");
-const GRASS_PNG: &[u8] = include_bytes!(
-    "../../../assets/Pixel Art Top Down - Basic v1.2.3/Texture/TX Tileset Grass.png"
-);
 const BOX_PNG: &[u8] = include_bytes!("../../../assets/box.png");
 
 const BOX_SPRITE_ID: u32 = 2;
@@ -75,7 +73,9 @@ fn load_level_assets() {
             tileset_images: vec![TilesetImage {
                 name: "grass",
                 sprite_id: GRASS_SPRITE_ID,
-                png_bytes: GRASS_PNG,
+                png_bytes: CAINOS_TOP_DOWN_BASIC
+                    .image_bytes("grass_tileset")
+                    .expect("grass tileset is declared in the Cainos pack"),
             }],
         }
         .encode(),
