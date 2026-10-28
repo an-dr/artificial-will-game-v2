@@ -1,112 +1,82 @@
 # artificial-will-game-v2
 
-A from-scratch reimplementation of
-[artificial-will-game](https://github.com/an-dr/artificial-will-game) — a
-game about a robot named Will overcoming obstacles — built on
-[bones](https://github.com/an-dr/bones), a native engine core with game
-behavior shipped as WASM extensions, instead of the original's hand-rolled
-C++/SDL2/EnTT engine.
+A 2D top-down game about Will, a TV-head robot, fighting his way through grass fields and overgrown ruins.
 
-See [docs/architecture.md](docs/architecture.md) for the implemented system
-boundaries and [AGENTS.md](AGENTS.md) for the AI-agent workflow this repo uses
-([an-dr/agents](https://github.com/an-dr/agents)).
+This is a from-scratch reimplementation of [artificial-will-game](https://github.com/an-dr/artificial-will-game). The original runs on a hand-rolled C++/SDL2/EnTT engine; v2 runs on [bones](https://github.com/an-dr/bones), a native engine core that loads all game behavior as WASM extensions.
 
-## Repository layout
-
-- `agents/` — the AI-agent workflow policy, a git submodule (root, same as
-  `bones` embeds it in its own repo).
-- `vendor/bones/` — the engine, a git submodule. We can and do patch it —
-  changes belong upstream, committed inside that checkout and pushed
-  deliberately, never silently drifting from `an-dr/bones`.
-- `Cargo.toml` / `src/` — the game itself, package `game`, binary
-  `artificial-will`. Embeds `bones` directly as path dependencies
-  (`runner`, `game-core`), the same pattern `vendor/bones/embedding-demo`
-  documents, rather than running bones' own generic `app` binary. Its own
-  `[workspace]` excludes `vendor/bones` (see the comment in `Cargo.toml` —
-  required because `vendor/bones/shared/bones-messages` is itself a
-  self-isolated workspace nested inside this repo).
-- `build.rs` — builds the `extensions/` workspace as part of `cargo build`,
-  so there's no separate manual step for day-to-day iteration.
-- `extensions/` — a separate Cargo workspace (different target: `wasm32-
-  wasip2`): independent menu, level, and character WASM components sharing one
-  `target/` so every extension's `.wasm` lands in one predictable directory.
-- `xtask/` — a small Rust program (not a shell script) that assembles a
-  self-contained `dist/`: run via `cargo xtask dist` (aliased in
-  `.cargo/config.toml`).
-
-## Setup
+## Installation
 
 ```sh
-git clone --recurse-submodules <this-repo-url>
-# or, if already cloned:
-git submodule update --init --recursive
+git clone --recurse-submodules https://github.com/an-dr/artificial-will-game-v2
+cd artificial-will-game-v2
+rustup target add wasm32-wasip2
 ```
 
-Requires Rust (`rustup target add wasm32-wasip2`) and, for `vendor/bones`
-itself, a C toolchain + CMake (it builds SDL3 from source) — see
-[vendor/bones' own README](vendor/bones/README.md). If cmake can't find a
-generator, use the platform's compiler environment and set
-`CMAKE_GENERATOR=Ninja` (or point it at another installed generator).
+If the repository is already cloned, fetch the submodules with `git submodule update --init --recursive`.
 
-## Build & run
+Bones builds SDL3 from source, so it also needs a C toolchain and CMake; see [the bones README](vendor/bones/README.md). If CMake cannot find a generator, use the platform's compiler environment and set `CMAKE_GENERATOR=Ninja`, or point it at another installed generator.
 
-Plain `cargo` — no separate extension or asset-copy command:
+## Quickstart
 
 ```sh
 cargo run --release
 ```
 
-This builds `game` (embedding bones directly) *and*, via `build.rs`, every
-extension in `extensions/` — one command. `src/paths.rs` finds them at
-`extensions/target/wasm32-wasip2/release` relative to the exe (the dev-tree
-layout); a shipped `dist/` build has grouped `extensions/core/` and
-`extensions/levels/` directories next to the binary instead, and that
-dedicated extension root is checked first.
+One command builds the game and, through [build.rs](build.rs), every extension in `extensions/`. Pick **Start** in the menu to play.
 
 ## Controls
 
-- Use the mouse or the arrow/WASD keys to navigate menus. Enter or Space
-  activates the selected item.
-- Press Escape during play to pause; press it again to resume.
-- Move with WASD or the arrow keys at 160 pixels per second on each axis.
-- Press Space for one facing-dependent melee swing. A swing affects only the
-  nearest box or slime in its forward lane.
+- Mouse or arrow keys/WASD navigate menus; Enter or Space activates the selected item.
+- WASD or arrow keys move Will at 160 pixels per second on each axis.
+- Space swings once in the facing direction and hits only the nearest box or slime in that lane.
+- Escape pauses play; press it again to resume.
 
-Will keeps moving during an attack, but facing remains fixed until its two
-frames finish. Will starts each session with three lives and a short damage
-invulnerability window. The game HUD shows lives, level, total XP, current
-level progress, and coins; progression resets when the level session restarts
-or changes. Walk and idle animations select down, up, or side sheets; the
-right-facing side sheet is mirrored.
+## Features
 
-Level One preserves the original grass map and pushable boxes. Each box breaks
-in one hit and contains a deterministic coin reward. Level Two is an overgrown
-ruin with mixed grass and broken-stone ground, illustrated fixed rock
-obstacles, and six animated slimes. Slimes proactively pursue Will inside
-their awareness radius, stop before contact, and deal damage only when their
-visible attack animation reaches its strike frame. The wind-up can be escaped
-or interrupted; touching a slime by itself is harmless. Slimes take two hits
-and award one XP on defeat. Every three XP increases Will's displayed level.
-Losing the last life pauses the world on a game-over screen; Enter tears down
-the finished session and returns to the main screen.
+- Will has idle, walk, attack, and hurt animations for each of four directions, all from one sprite sheet. He keeps moving during an attack, but his facing stays fixed until its four frames finish.
+- Three lives per session, a short invulnerability window after damage, and a HUD with lives, level, total XP, level progress, and coins.
+- Level One keeps the original grass map with pushable boxes; each box breaks in one hit and drops a fixed coin reward.
+- Level Two is an overgrown ruin with broken-stone ground, rock obstacles, and six slimes. Slimes chase Will inside their awareness radius, stop short of contact, and deal damage only when their visible attack reaches its strike frame. The wind-up can be escaped or interrupted; touching a slime alone is harmless.
+- Slimes take two hits and give one XP each; every three XP raises Will's level. Progression resets when the level session restarts or changes.
+- Losing the last life pauses the world on a game-over screen; Enter returns to the main screen.
 
-## Testing a self-contained build
+## Repository map
 
-`cargo run` is enough for day-to-day iteration — it never needs `dist/`.
-Use `cargo xtask dist` when you actually need a standalone folder: handing
-a build to someone else, or verifying the shipped-layout path resolution
-itself (`extensions/` next to the exe, not the dev-tree fallback)
-actually works, rather than trusting the dev-tree fallback path:
+- `src/` and `Cargo.toml`: the game binary `artificial-will`. It embeds bones directly as path dependencies (`runner`, `game-core`), following `vendor/bones/embedding-demo`, instead of running bones' generic `app` binary. Its `[workspace]` excludes `vendor/bones`, because `vendor/bones/shared/bones-messages` is a self-isolated workspace nested inside this repository.
+- `extensions/`: a separate Cargo workspace targeting `wasm32-wasip2`. It holds the `menu`, `level-one`, `level-two`, and `will` components plus three shared libraries: `game-messages`, `sprite-sheet` (sprite-sheet and asset-pack JSON), and `game-assets` (the embedded third-party packs). See [extensions/README.md](extensions/README.md).
+- `assets/`: our own art in `william/` and `box.png`, and licensed packs in `third-party/<pack>/`. Each pack sits byte-for-byte under `upstream/` with our `pack.json` beside it, which records author, source, and license and gives every asset the game uses a stable id. Add or swap third-party art by editing the manifest, not game code.
+- `xtask/`: a Rust program that assembles a self-contained `dist/`.
+- `vendor/bones/`: the engine, a git submodule. Patches to it are committed inside that checkout and pushed upstream deliberately.
+- `agents/`: the AI-agent workflow policy, a git submodule; see [AGENTS.md](AGENTS.md).
+
+## Development
+
+Run the game's tests and the extensions' tests separately, because the extensions are their own workspace:
+
+```sh
+cargo test
+cd extensions
+cargo test
+```
+
+`cargo run` finds the extensions at `extensions/target/wasm32-wasip2/release`, relative to the executable. For a standalone folder, to hand a build to someone or to test the shipped layout, run:
 
 ```sh
 cargo xtask dist
 ```
 
-A real Rust program (`xtask/`, not a script) that builds `game` and every
-current extension target, then assembles `dist/artificial-will(.exe)`,
-`dist/extensions/core/*.wasm`, and `dist/extensions/levels/*.wasm` in one
-command — copy `dist/` anywhere and run it as-is. The current contents are
-`extensions/core/menu.wasm`, `extensions/core/will.wasm`,
-`extensions/levels/level_one.wasm`, and `extensions/levels/level_two.wasm`. This
-replaces manually rebuilding bones as an app and copying `.wasm` files into
-place.
+It builds the game and every extension, then writes `dist/artificial-will(.exe)` with `dist/extensions/core/` (`menu.wasm`, `will.wasm`) and `dist/extensions/levels/` (`level_one.wasm`, `level_two.wasm`). The executable checks that grouped extension directory first. Copy `dist/` anywhere and run it as is.
+
+## Documentation
+
+- [docs/architecture.md](docs/architecture.md): system boundaries, extension responsibilities, and assets and packaging.
+- [docs/design/](docs/design/): design notes, starting with the menu and level lifecycle.
+- [TECHDEBT.md](TECHDEBT.md): known compromises, such as sprite-sheet re-cutting, and the bones upgrades that remove them.
+
+## License
+
+GNU General Public License v3.0; see [LICENSE](LICENSE). Third-party art keeps its own license, recorded in each `assets/third-party/<pack>/pack.json`.
+
+## Status
+
+In active development.
