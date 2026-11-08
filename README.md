@@ -1,6 +1,6 @@
 # artificial-will-game-v2
 
-[![AI Level 3](https://ai-level.dev/badge/standard/3.svg)](https://ai-level.dev/level-3)
+[![Powered by bones](https://img.shields.io/badge/powered%20by-bones-e8e2d4?labelColor=2b2b2b)](https://github.com/an-dr/bones) [![AI Level 3](https://ai-level.dev/badge/standard/3.svg)](https://ai-level.dev/level-3)
 
 A 2D top-down game about Will, a TV-head robot, fighting his way through grass fields and overgrown ruins and wandering a peaceful harbour town.
 
