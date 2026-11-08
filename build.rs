@@ -20,6 +20,9 @@ fn main() {
     println!("cargo:rerun-if-changed=extensions/level-two/Cargo.toml");
     println!("cargo:rerun-if-changed=extensions/level-two/src");
     println!("cargo:rerun-if-changed=extensions/level-two/assets");
+    println!("cargo:rerun-if-changed=extensions/level-three/Cargo.toml");
+    println!("cargo:rerun-if-changed=extensions/level-three/src");
+    println!("cargo:rerun-if-changed=extensions/level-three/assets");
     println!("cargo:rerun-if-changed=extensions/menu/Cargo.toml");
     println!("cargo:rerun-if-changed=extensions/menu/src");
     println!("cargo:rerun-if-changed=extensions/will/Cargo.toml");

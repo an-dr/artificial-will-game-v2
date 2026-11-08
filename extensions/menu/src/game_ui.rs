@@ -8,6 +8,7 @@ pub const QUIT: u32 = 3;
 pub const LEVEL_ONE: u32 = 10;
 pub const LEVEL_TWO: u32 = 11;
 pub const LEVEL_BACK: u32 = 12;
+pub const LEVEL_THREE: u32 = 13;
 pub const RESUME: u32 = 20;
 pub const PAUSE_SETTINGS: u32 = 21;
 pub const PAUSE_LEVELS: u32 = 22;
@@ -50,6 +51,7 @@ pub fn build_layout(
         Screen::LevelSelection => vec![
             Button::new(LEVEL_ONE, "Level One"),
             Button::new(LEVEL_TWO, "Level Two"),
+            Button::new(LEVEL_THREE, "White Harbour"),
             Button::new(LEVEL_BACK, "Back"),
         ],
         Screen::Pause => vec![

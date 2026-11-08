@@ -21,5 +21,7 @@ Adding an extension: create a new crate here (`cdylib`, depends on
 it to this file's `[workspace] members`. [menu](menu) owns navigation and
 session control, [level-one](level-one) owns the first level's game-core
 setup plus destructible coin boxes, [level-two](level-two) owns the stone field
-and its pursuing, damaging, two-hit slimes, and [will](will) owns the character,
+and its pursuing, damaging, two-hit slimes, [level-three](level-three) owns
+the enemy-free White Harbour coast with its robot residents and spirit
+visitors, and [will](will) owns the character,
 session progression, combat requests, HUD, and confirmed-hit feedback.

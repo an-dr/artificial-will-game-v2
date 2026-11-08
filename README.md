@@ -43,8 +43,8 @@ One command builds the game and, through [build.rs](build.rs), every extension i
 ## Repository map
 
 - `src/` and `Cargo.toml`: the game binary `artificial-will`. It embeds bones directly as path dependencies (`runner`, `game-core`), following `vendor/bones/embedding-demo`, instead of running bones' generic `app` binary. Its `[workspace]` excludes `vendor/bones`, because `vendor/bones/shared/bones-messages` is a self-isolated workspace nested inside this repository.
-- `extensions/`: a separate Cargo workspace targeting `wasm32-wasip2`. It holds the `menu`, `level-one`, `level-two`, and `will` components plus three shared libraries: `game-messages`, `sprite-sheet` (sprite-sheet and asset-pack JSON), and `game-assets` (the embedded third-party packs). See [extensions/README.md](extensions/README.md).
-- `assets/`: our own art in `william/` and `box.png`, and licensed packs in `third-party/<pack>/`. Each pack sits byte-for-byte under `upstream/` with our `pack.json` beside it, which records author, source, and license and gives every asset the game uses a stable id. Add or swap third-party art by editing the manifest, not game code.
+- `extensions/`: a separate Cargo workspace targeting `wasm32-wasip2`. It holds the `menu`, `level-one`, `level-two`, `level-three`, and `will` components plus three shared libraries: `game-messages`, `sprite-sheet` (sprite-sheet and asset-pack JSON), and `game-assets` (the embedded third-party packs). See [extensions/README.md](extensions/README.md).
+- `assets/`: our own art in `william/`, `box.png`, and `robot_game_assets/` (procedural placeholder biomes and characters, used by `level-three`), and licensed packs in `third-party/<pack>/`. Each pack sits byte-for-byte under `upstream/` with our `pack.json` beside it, which records author, source, and license and gives every asset the game uses a stable id. Add or swap third-party art by editing the manifest, not game code.
 - `xtask/`: a Rust program that assembles a self-contained `dist/`.
 - `vendor/bones/`: the engine, a git submodule. Patches to it are committed inside that checkout and pushed upstream deliberately.
 - `agents/`: the AI-agent workflow policy, a git submodule; see [AGENTS.md](AGENTS.md).
@@ -65,7 +65,7 @@ cargo test
 cargo xtask dist
 ```
 
-It builds the game and every extension, then writes `dist/artificial-will(.exe)` with `dist/extensions/core/` (`menu.wasm`, `will.wasm`) and `dist/extensions/levels/` (`level_one.wasm`, `level_two.wasm`). The executable checks that grouped extension directory first. Copy `dist/` anywhere and run it as is.
+It builds the game and every extension, then writes `dist/artificial-will(.exe)` with `dist/extensions/core/` (`menu.wasm`, `will.wasm`) and `dist/extensions/levels/` (`level_one.wasm`, `level_two.wasm`, `level_three.wasm`). The executable checks that grouped extension directory first. Copy `dist/` anywhere and run it as is.
 
 ## Documentation
 

@@ -682,3 +682,52 @@ fn slime_contact_is_harmless_and_a_timed_attack_deals_damage() {
             && PlayerStats::decode(&event.payload).is_ok_and(|stats| stats.lives == 2)
     }));
 }
+
+#[test]
+fn white_harbour_loads_its_map_props_and_cast_without_enemies() {
+    let saves = SavesDir::create("harbour");
+    let extensions = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("extensions/target/wasm32-wasip2/release");
+    let mut built = runner::Engine::new()
+        .extensions_dir(extensions)
+        .startup_extension("menu")
+        .extension_controller("menu")
+        .saves_dir(saves.0.clone())
+        .module(game_core::GameCore::new())
+        .build()
+        .unwrap();
+    announce_logical_canvas(&mut built, 960, 540);
+
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let sink = Arc::clone(&captured);
+    let spy = built
+        .runner
+        .bus()
+        .register("harbour-test", move |event: &Envelope| {
+            sink.lock().unwrap().push(event.clone());
+        });
+    spy.subscribe("gfx/*");
+
+    pump(&mut built, 2);
+    press(&mut built, "Return");
+    press(&mut built, "Down");
+    press(&mut built, "Down");
+    press(&mut built, "Return");
+    pump(&mut built, 4);
+
+    let registry = &built.supervisor.registry;
+    assert!(registry.call("test", "level_three", &[]).is_ok());
+    assert!(registry.call("test", "level_two", &[]).is_err());
+    let events = captured.lock().unwrap();
+    let drawn: Vec<u32> = events
+        .iter()
+        .filter(|event| event.topic == DrawSprite::TOPIC)
+        .filter_map(|event| DrawSprite::decode(&event.payload).ok())
+        .map(|sprite| sprite.id)
+        .collect();
+    assert!(drawn.contains(&300), "harbour tiles are drawn");
+    assert!(drawn.iter().any(|id| (310..=319).contains(id)), "props are drawn");
+    assert!(drawn.contains(&330) && drawn.contains(&331), "spawn pad and beam are drawn");
+    assert!(drawn.iter().any(|id| *id >= 340), "characters are drawn");
+    assert!(!drawn.iter().any(|id| (30..=44).contains(id)), "no slimes");
+}

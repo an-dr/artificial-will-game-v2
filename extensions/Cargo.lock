@@ -148,6 +148,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "level-three"
+version = "0.1.0"
+dependencies = [
+ "bones-messages",
+ "game-messages",
+ "serde_json",
+ "sprite-sheet",
+ "wit-bindgen",
+]
+
+[[package]]
 name = "level-two"
 version = "0.1.0"
 dependencies = [

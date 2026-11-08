@@ -1,0 +1,69 @@
+{
+ "meadow": {
+  "tiles": {
+   "grass": 4,
+   "dirt": 4,
+   "concrete_slab": 4,
+   "concrete_slab__over__grass": 16,
+   "dirt__over__grass": 16
+  },
+  "props": 18
+ },
+ "dune_city": {
+  "tiles": {
+   "sand": 4,
+   "oasis_grass": 4,
+   "pond_water": 4,
+   "oasis_grass__over__sand": 16,
+   "water__over__sand": 16
+  },
+  "props": 9
+ },
+ "drowned_district": {
+  "tiles": {
+   "flood_water": 2,
+   "rooftop_concrete": 4,
+   "plank_bridge_h": 2,
+   "plank_bridge_v": 2,
+   "flood_water_anim": 4,
+   "rooftop__over__water": 16
+  },
+  "props": 11
+ },
+ "rust_works": {
+  "tiles": {
+   "metal_floor": 4,
+   "back_wall": 4,
+   "overgrowth": 4,
+   "overgrowth__over__metal": 16
+  },
+  "props": 8
+ },
+ "last_fair": {
+  "tiles": {
+   "pavers": 4,
+   "lawn": 4,
+   "pavers__over__lawn": 16
+  },
+  "props": 8
+ },
+ "gorge_village": {
+  "tiles": {
+   "grass": 4,
+   "wood_deck": 4,
+   "chasm_deep": 2,
+   "chasm__over__grass": 16
+  },
+  "props": 12
+ },
+ "white_harbour": {
+  "tiles": {
+   "promenade": 4,
+   "beach_sand": 4,
+   "sea": 4,
+   "promenade__over__sand": 16,
+   "sea__over__sand": 16
+  },
+  "props": 10
+ }
+}

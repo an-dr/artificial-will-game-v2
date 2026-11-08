@@ -5,6 +5,8 @@ pub enum Level {
     One,
     /// The rock-filled ruins level.
     Two,
+    /// The White Harbour coastal level, without enemies.
+    Three,
 }
 
 impl Level {
@@ -13,6 +15,7 @@ impl Level {
         match self {
             Self::One => "level_one",
             Self::Two => "level_two",
+            Self::Three => "level_three",
         }
     }
 }

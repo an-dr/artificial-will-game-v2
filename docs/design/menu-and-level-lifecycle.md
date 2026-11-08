@@ -13,6 +13,7 @@ to keep navigation in WASM while loading only the selected gameplay content.
 | `will.wasm` | Character resources, entity, input, and cleanup |
 | `level_one.wasm` | Level resources, entities, camera, and cleanup |
 | `level_two.wasm` | Mixed grass/stone ruins, illustrated rocks, proactive attacking slimes, camera, and cleanup |
+| `level_three.wasm` | White Harbour coast from the in-house robot pack: map, props, spawn pad, robot and spirit characters, sea walls, camera, and cleanup; no enemies |
 | native `game-core` | Simulation, rendering, pause, and world reset |
 
 The menu is the only startup extension. Gameplay extensions are cataloged but
@@ -89,7 +90,8 @@ dist/
     │   └── will.wasm
     └── levels/
         ├── level_one.wasm
-        └── level_two.wasm
+        ├── level_two.wasm
+        └── level_three.wasm
 ```
 
 Cargo package metadata assigns each component its distribution group. The

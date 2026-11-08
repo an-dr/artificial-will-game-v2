@@ -115,7 +115,7 @@ fn handle_key_up(key: &str) {
 }
 
 fn is_active_level(sender: &str) -> bool {
-    matches!(sender, "level_one" | "level_two")
+    matches!(sender, "level_one" | "level_two" | "level_three")
 }
 
 fn start_damage_reaction(message: PlayerDamaged) {

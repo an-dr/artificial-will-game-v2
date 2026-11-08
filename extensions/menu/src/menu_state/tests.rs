@@ -36,6 +36,7 @@ fn selecting_level_two_uses_its_independent_extension() {
     );
     assert_eq!(state.active_level(), Some(Level::Two));
     assert_eq!(Level::Two.extension_name(), "level_two");
+    assert_eq!(Level::Three.extension_name(), "level_three");
 }
 
 #[test]

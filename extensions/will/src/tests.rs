@@ -20,6 +20,7 @@ fn pausing_clears_movement_and_reset_restores_active_defaults() {
 fn only_level_extensions_are_trusted_for_combat_outcomes() {
     assert!(is_active_level("level_one"));
     assert!(is_active_level("level_two"));
+    assert!(is_active_level("level_three"));
     assert!(!is_active_level("menu"));
     assert!(!is_active_level("rogue"));
 }

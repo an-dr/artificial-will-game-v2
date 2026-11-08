@@ -1,0 +1,27 @@
+{
+ "spawn_pad_anim": {
+  "frame": [
+   96,
+   56
+  ],
+  "frames": 4,
+  "fps": 6,
+  "anchor": [
+   48,
+   32
+  ]
+ },
+ "spawn_beam_anim": {
+  "frame": [
+   64,
+   248
+  ],
+  "frames": 4,
+  "fps": 6,
+  "anchor": [
+   32,
+   232
+  ],
+  "blend": "additive or alpha, draw after pad"
+ }
+}

@@ -1,0 +1,19 @@
+[package]
+name = "level-three"
+version = "0.1.0"
+edition = "2021"
+
+[package.metadata.artificial-will]
+dist-group = "levels"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+bones-messages = { path = "../../vendor/bones/shared/bones-messages" }
+game-messages = { path = "../game-messages" }
+sprite-sheet = { path = "../sprite-sheet" }
+wit-bindgen = "0.59.0"
+
+[dev-dependencies]
+serde_json = "1"
