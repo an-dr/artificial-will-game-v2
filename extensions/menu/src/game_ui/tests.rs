@@ -1,5 +1,5 @@
 use super::*;
-use game_ui::Selection;
+use bones_wasm_sdk::game_ui::Selection;
 
 #[test]
 fn every_menu_screen_builds_centered_game_buttons() {

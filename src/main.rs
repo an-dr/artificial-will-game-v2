@@ -1,12 +1,6 @@
-//! Our own composition root, embedding bones directly as path dependencies
-//! (`vendor/bones/docs/design/modules.md`'s "Embedding bones") rather than
-//! running bones' own generic `app` binary + `bones.toml` -- we know
-//! exactly which modules this game needs (renderer and game-core; no
-//! audio yet) and bake that in as code, not runtime config. `runner` and
-//! `game-core` below are `Cargo.toml` path dependencies; no `use` or
-//! `extern crate` is needed to reach `runner::Engine` or
-//! `game_core::GameCore` -- every dependency has been addressable by its
-//! crate name directly since the 2018 edition.
+//! Our own composition root, embedding the bones kernel directly rather
+//! than running the stock `bones` binary with a `bones.toml`: we know which
+//! modules this game needs and bake them in as code.
 
 mod paths;
 
@@ -18,13 +12,20 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
-    runner::Engine::new()
-        .window("Artificial Will", 800, 600)
-        .extensions_dir(paths::extensions_dir())
+    let kernel = bones_kernel::Kernel::new().window("Artificial Will", 800, 600);
+    paths::with_extensions(kernel)
+        // Only the menu starts; it loads levels and Will on demand. Also
+        // required: without it the window opens blank, so a missing or
+        // failing menu.wasm fails the build instead.
         .startup_extension("menu")
+        .required_extension("menu")
         .extension_controller("menu")
         .renderer()
-        .module(game_core::GameCore::new())
+        .module(bones_kernel::game_core::GameCore::new())
+        // BONES_OFFSCREEN renders into memory (headless screenshots);
+        // BONES_DEVTOOLS_PORT opens the devtools channel for inspection.
+        .offscreen_from_env("BONES_OFFSCREEN")
+        .devtools_from_env("BONES_DEVTOOLS_PORT")
         .run()
         .map_err(|err| err.to_string())
 }

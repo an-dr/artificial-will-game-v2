@@ -1,6 +1,6 @@
 use crate::display_preferences::DisplayPreferences;
 use crate::screen::Screen;
-use game_ui::{Button, Canvas, MenuLayout, VerticalMenu};
+use bones_wasm_sdk::game_ui::{Button, Canvas, MenuLayout, VerticalMenu};
 
 pub const START: u32 = 1;
 pub const START_SETTINGS: u32 = 2;

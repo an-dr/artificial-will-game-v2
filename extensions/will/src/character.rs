@@ -1,7 +1,7 @@
-use crate::bones::core::host_api::publish;
 use bones_messages::game_core::{BodyKind, EntityOp, PhysicsWorlds, Shape, SpritePresentation};
 use bones_messages::gfx::LoadSprite;
 use bones_messages::{EncodeMessage, Message};
+use bones_wasm_sdk::bindings::bones::extension::host_api::publish;
 use game_messages::{WILL_ENTITY_ID, WILL_SPAWN};
 
 use sprite_sheet::SpriteSheet;

@@ -1,13 +1,6 @@
-# Standalone workspace-of-one. `runner`/`game-core` (path deps below)
-# transitively path-depend on `vendor/bones/shared/bones-messages`, which
-# self-isolates as its own `[workspace]` (it's built for both host and
-# WASM-guest targets, per `vendor/bones/docs/structure.md`). Because
-# `vendor/bones` is *nested inside* this repo (unlike `bones/embedding-demo`,
-# a sibling of `shared/`, not an ancestor), Cargo sees our workspace root as
-# an ancestor directory of that nested self-declared workspace and refuses
-# to resolve ("multiple workspace roots found") unless we exclude it here --
-# the same reason `vendor/bones/Cargo.toml` itself excludes
-# `shared/bones-messages` from its own workspace.
+# Standalone workspace-of-one. `vendor/bones` is nested inside this repo and
+# its `crates/bones-messages` declares its own workspace (it is built for host
+# and WASM guests), so Cargo would see two workspace roots unless excluded.
 [workspace]
 exclude = ["vendor/bones"]
 
@@ -21,10 +14,10 @@ name = "artificial-will"
 path = "src/main.rs"
 
 [dependencies]
-runner = { path = "vendor/bones/core/runner" }
-game-core = { path = "vendor/bones/core/game-core" }
+# The whole engine is one crate (bones ADR-030). Default features bring the
+# presentation stack, audio, and game-core; `wasm` hosts our extensions, and
+# `devtools` lets BONES_DEVTOOLS_PORT open the inspection channel.
+bones-kernel = { path = "vendor/bones/crates/bones-kernel", features = ["wasm", "devtools"] }
 
 [dev-dependencies]
-bones-messages = { path = "vendor/bones/shared/bones-messages" }
-bus = { path = "vendor/bones/core/bus" }
 game-messages = { path = "extensions/game-messages" }

@@ -22,7 +22,15 @@ checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
 
 [[package]]
 name = "bones-messages"
-version = "0.1.0"
+version = "1.4.0"
+
+[[package]]
+name = "bones-wasm-sdk"
+version = "1.4.0"
+dependencies = [
+ "bones-messages",
+ "wit-bindgen",
+]
 
 [[package]]
 name = "cfg-if"
@@ -86,13 +94,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "game-ui"
-version = "0.1.0"
-dependencies = [
- "bones-messages",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -142,9 +143,9 @@ name = "level-one"
 version = "0.1.0"
 dependencies = [
  "bones-messages",
+ "bones-wasm-sdk",
  "game-assets",
  "game-messages",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -152,10 +153,10 @@ name = "level-three"
 version = "0.1.0"
 dependencies = [
  "bones-messages",
+ "bones-wasm-sdk",
  "game-messages",
  "serde_json",
  "sprite-sheet",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -163,10 +164,10 @@ name = "level-two"
 version = "0.1.0"
 dependencies = [
  "bones-messages",
+ "bones-wasm-sdk",
  "game-assets",
  "game-messages",
  "sprite-sheet",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -197,9 +198,8 @@ name = "menu"
 version = "0.1.0"
 dependencies = [
  "bones-messages",
+ "bones-wasm-sdk",
  "game-messages",
- "game-ui",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -395,10 +395,9 @@ name = "will"
 version = "0.1.0"
 dependencies = [
  "bones-messages",
+ "bones-wasm-sdk",
  "game-messages",
- "game-ui",
  "sprite-sheet",
- "wit-bindgen",
 ]
 
 [[package]]

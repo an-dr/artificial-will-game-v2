@@ -1,3 +1,4 @@
+use bones_wasm_sdk::bus;
 use std::cell::RefCell;
 
 use bones_messages::extension_control::{Load, Unload};
@@ -7,13 +8,9 @@ use bones_messages::input::{KeyDown, MouseDown, MouseMove};
 use bones_messages::persistence::{Save, ENDPOINT as PERSISTENCE};
 use bones_messages::renderer::{DisplayChanged, LogicalCanvas};
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
+use bones_wasm_sdk::game_ui::{Canvas, DrawCommand, Rect, Selection};
 use game_messages::{PauseChanged, PlayerDefeated, SessionReset};
-use game_ui::{Canvas, DrawCommand, Rect, Selection};
 
-use crate::bones::core::host_api::{
-    list_display_modes, log, native_display_mode, publish, request_exit, send, subscribe,
-    DisplayMode, Level as LogLevel,
-};
 use crate::display_preferences::DisplayPreferences;
 use crate::game_ui::{
     build_layout, FULLSCREEN, GAME_OVER_MAIN_MENU, LEVEL_BACK, LEVEL_ONE, LEVEL_THREE, LEVEL_TWO,
@@ -25,6 +22,10 @@ use crate::menu_state::MenuState;
 use crate::resolution_options::normalize_resolutions;
 use crate::screen::Screen;
 use crate::session_request::SessionRequest;
+use bones_wasm_sdk::bindings::bones::extension::host_api::{
+    list_display_modes, log, native_display_mode, publish, request_exit, send, subscribe,
+    DisplayMode, Level as LogLevel,
+};
 
 const MENU_LAYER: u8 = 250;
 const BACKDROP_COLOR: (u8, u8, u8, u8) = (5, 8, 15, 255);
@@ -80,7 +81,7 @@ thread_local! {
 }
 
 fn publish_message<M: EncodeMessage>(message: M) {
-    publish(M::TOPIC, &message.encode());
+    bus::publish(&message);
 }
 
 fn set_paused(paused: bool) {
@@ -154,12 +155,12 @@ fn query_resolutions() -> Vec<(u32, u32)> {
 }
 
 pub fn init() {
-    subscribe(KeyDown::TOPIC);
-    subscribe(MouseDown::TOPIC);
-    subscribe(MouseMove::TOPIC);
-    subscribe(DisplayChanged::TOPIC);
-    subscribe(LogicalCanvas::TOPIC);
-    subscribe(PlayerDefeated::TOPIC);
+    bus::subscribe::<KeyDown>();
+    bus::subscribe::<MouseDown>();
+    bus::subscribe::<MouseMove>();
+    bus::subscribe::<DisplayChanged>();
+    bus::subscribe::<LogicalCanvas>();
+    bus::subscribe::<PlayerDefeated>();
     subscribe("core/tick");
 
     let resolutions = query_resolutions();
@@ -286,7 +287,7 @@ pub fn publish_ui() {
         selection,
     } = snapshot;
     if screen == Screen::Gameplay {
-        publish(ClearDrawBatch::TOPIC, &ClearDrawBatch.encode());
+        bus::publish(&ClearDrawBatch);
         return;
     }
     if screen == Screen::GameOver {

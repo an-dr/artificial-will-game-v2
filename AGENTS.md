@@ -32,21 +32,20 @@ bus) with game behavior shipped as WASM extensions.
   itself, on its own branch/history, never folded into a v2 commit. A
   bumped submodule pointer in v2 is a separate, deliberate commit.
 - The game (`Cargo.toml` + `src/` at repo root, package `game`, binary
-  `artificial-will`) embeds `bones` directly as path dependencies
-  (`runner`, `game-core`) — the `vendor/bones/embedding-demo` pattern —
-  rather than running bones' own generic `app` binary + `bones.toml`. Its
-  `[workspace]` must `exclude = ["vendor/bones"]`: `vendor/bones/shared/
-  bones-messages` self-isolates as its own workspace (built for both host
-  and WASM-guest targets), and since `vendor/bones` is nested inside this
-  repo, Cargo treats an un-excluded ancestor workspace as a conflict
-  ("multiple workspace roots found") — `embedding-demo` doesn't need this
-  because it's a *sibling* of `shared/`, not an ancestor.
-- Game logic lives under `extensions/` as WASM components implementing
-  `vendor/bones/wit/core.wit`, all members of one separate Cargo workspace
-  (`extensions/Cargo.toml`, different target: `wasm32-wasip2`) so every
-  extension's `.wasm` lands in one predictable directory. See
-  `docs/architecture.md` for the planned module breakdown and
-  `extensions/hello/` for the reference extension shape.
+  `artificial-will`) embeds the bones kernel as one path dependency,
+  `bones-kernel` (features `wasm`, `devtools`) — the
+  `vendor/bones/examples/embedding/custom-engine` pattern — rather than
+  running the stock `bones` binary + `bones.toml`. Its `[workspace]` must
+  `exclude = ["vendor/bones"]`: `vendor/bones/crates/bones-messages`
+  self-isolates as its own workspace (built for host and WASM guests), and
+  Cargo treats an un-excluded ancestor workspace as a conflict ("multiple
+  workspace roots found").
+- Game logic lives under `extensions/` as WASM components built on
+  `bones-wasm-sdk` (`vendor/bones/crates/bones-wasm-sdk`; the `game-ui`
+  feature for the menu and HUD), all members of one separate Cargo workspace
+  (`extensions/Cargo.toml`, target `wasm32-wasip2`) so every extension's
+  `.wasm` lands in one predictable directory. Prefer the SDK's typed
+  `bus::publish(&msg)` / `bus::subscribe::<M>()` over raw topic strings.
 - No custom build scripts (PowerShell or otherwise) in this repo. Plain
   `cargo build`/`cargo run` is enough for day-to-day iteration — builds the
   game *and* extensions (root `build.rs` builds the `extensions/` workspace

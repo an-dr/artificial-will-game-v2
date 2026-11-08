@@ -16,7 +16,8 @@ Output: `target/wasm32-wasip2/release/<name>.wasm` for every `cdylib` member
 — exactly where the embedded game's development path looks for components.
 
 Adding an extension: create a new crate here (`cdylib`, depends on
-`wit-bindgen`, generates against `../vendor/bones/wit`), assign its
+`bones-wasm-sdk` from `../vendor/bones/crates/bones-wasm-sdk` and exports with
+`bones_wasm_sdk::export!`), assign its
 `package.metadata.artificial-will.dist-group` to `core` or `levels`, and add
 it to this file's `[workspace] members`. [menu](menu) owns navigation and
 session control, [level-one](level-one) owns the first level's game-core

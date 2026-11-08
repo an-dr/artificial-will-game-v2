@@ -1,5 +1,5 @@
+use bones_wasm_sdk::game_ui::{DrawCommand, Rect};
 use game_messages::PlayerStats;
-use game_ui::{DrawCommand, Rect};
 
 use crate::combat_state::EXPERIENCE_PER_LEVEL;
 

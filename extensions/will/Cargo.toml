@@ -10,8 +10,7 @@ dist-group = "core"
 crate-type = ["cdylib"]
 
 [dependencies]
-bones-messages = { path = "../../vendor/bones/shared/bones-messages" }
+bones-messages = { path = "../../vendor/bones/crates/bones-messages" }
 game-messages = { path = "../game-messages" }
-game-ui = { path = "../../vendor/bones/shared/game-ui" }
 sprite-sheet = { path = "../sprite-sheet" }
-wit-bindgen = "0.59.0"
+bones-wasm-sdk = { path = "../../vendor/bones/crates/bones-wasm-sdk", features = ["game-ui"] }

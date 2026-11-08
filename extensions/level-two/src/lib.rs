@@ -1,21 +1,17 @@
 #![cfg_attr(test, allow(dead_code))]
 
-wit_bindgen::generate!({
-    path: "../../vendor/bones/wit",
-    world: "extension",
-});
-
 mod slime_state;
 
+use bones_wasm_sdk::bus;
 use std::cell::RefCell;
 
-use bones::core::host_api::{log, publish, subscribe, Level};
 use bones_messages::game_core::{
     BodyKind, EntityOp, EntityOpMessage, EntityTransform, LoadTilemap, PhysicsWorlds, Shape,
     Sprite, SpritePresentation, TilesetImage,
 };
 use bones_messages::gfx::LoadSprite;
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
+use bones_wasm_sdk::bindings::bones::extension::host_api::{log, publish, subscribe, Level};
 use game_assets::{CAINOS_TOP_DOWN_BASIC, CRAFTPIX_SLIMES};
 use game_messages::{AttackRequested, PauseChanged, PlayerDamaged, WILL_ENTITY_ID, WILL_SPAWN};
 use slime_state::{
@@ -111,11 +107,11 @@ impl Rock {
 }
 
 fn publish_entity_op(op: EntityOp) {
-    publish(EntityOpMessage::TOPIC, &EntityOpMessage(op).encode());
+    bus::publish(&EntityOpMessage(op));
 }
 
 fn publish_message<M: Message + EncodeMessage>(message: M) {
-    publish(M::TOPIC, &message.encode());
+    bus::publish(&message);
 }
 
 fn load_ruins_map() {
@@ -303,6 +299,8 @@ fn configure_camera() {
     });
 }
 
+use bones_wasm_sdk::Guest;
+
 struct Component;
 
 impl Guest for Component {
@@ -323,9 +321,9 @@ impl Guest for Component {
         SLIME_FIELD.with(|field| {
             *field.borrow_mut() = SlimeField::new(SLIME_ID_START, SLIMES, WILL_SPAWN)
         });
-        subscribe(EntityTransform::TOPIC);
-        subscribe(PauseChanged::TOPIC);
-        subscribe(AttackRequested::TOPIC);
+        bus::subscribe::<EntityTransform>();
+        bus::subscribe::<PauseChanged>();
+        bus::subscribe::<AttackRequested>();
         subscribe("core/tick");
         load_ruins_map();
         load_rock_sprites();
@@ -402,7 +400,7 @@ impl Guest for Component {
 }
 
 #[cfg(not(test))]
-export!(Component);
+bones_wasm_sdk::export!(Component);
 
 #[cfg(test)]
 mod tests;

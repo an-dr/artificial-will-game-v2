@@ -1,10 +1,5 @@
 #![cfg_attr(test, allow(dead_code))]
 
-wit_bindgen::generate!({
-    path: "../../vendor/bones/wit",
-    world: "extension",
-});
-
 mod character;
 mod combat_state;
 mod damage_reaction;
@@ -13,12 +8,13 @@ mod hud;
 mod player_mode;
 mod player_state;
 
+use bones_wasm_sdk::bus;
 use std::cell::{Cell, RefCell};
 
-use bones::core::host_api::{log, publish, subscribe, Level};
 use bones_messages::game_core::{EntityOp, EntityOpMessage, EntityTransform};
 use bones_messages::input::{KeyDown, KeyUp};
 use bones_messages::{DecodeMessage, EncodeMessage, Message};
+use bones_wasm_sdk::bindings::bones::extension::host_api::{log, publish, subscribe, Level};
 use combat_state::{CombatState, DamageOutcome};
 use damage_reaction::DamageReaction;
 use game_messages::{
@@ -36,11 +32,11 @@ thread_local! {
 }
 
 fn publish_entity_op(op: EntityOp) {
-    publish(EntityOpMessage::TOPIC, &EntityOpMessage(op).encode());
+    bus::publish(&EntityOpMessage(op));
 }
 
 fn publish_message<M: Message + EncodeMessage>(message: M) {
-    publish(M::TOPIC, &message.encode());
+    bus::publish(&message);
 }
 
 fn set_key_held(key: &str, is_down: bool) {
@@ -136,6 +132,8 @@ fn start_damage_reaction(message: PlayerDamaged) {
     publish_player_tint(DAMAGE_REACTION.with(|reaction| reaction.borrow().tint()));
 }
 
+use bones_wasm_sdk::Guest;
+
 struct Component;
 
 impl Guest for Component {
@@ -148,13 +146,13 @@ impl Guest for Component {
 
     fn init() {
         reset_state();
-        subscribe(KeyDown::TOPIC);
-        subscribe(KeyUp::TOPIC);
-        subscribe(PauseChanged::TOPIC);
-        subscribe(SessionReset::TOPIC);
-        subscribe(EntityTransform::TOPIC);
-        subscribe(PlayerDamaged::TOPIC);
-        subscribe(RewardGranted::TOPIC);
+        bus::subscribe::<KeyDown>();
+        bus::subscribe::<KeyUp>();
+        bus::subscribe::<PauseChanged>();
+        bus::subscribe::<SessionReset>();
+        bus::subscribe::<EntityTransform>();
+        bus::subscribe::<PlayerDamaged>();
+        bus::subscribe::<RewardGranted>();
         subscribe("core/tick");
 
         character::load_sprites();
@@ -270,7 +268,7 @@ impl Guest for Component {
 }
 
 #[cfg(not(test))]
-export!(Component);
+bones_wasm_sdk::export!(Component);
 
 #[cfg(test)]
 mod tests;

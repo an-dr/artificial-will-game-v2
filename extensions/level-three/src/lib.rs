@@ -1,19 +1,15 @@
 #![cfg_attr(test, allow(dead_code))]
 
-wit_bindgen::generate!({
-    path: "../../vendor/bones/wit",
-    world: "extension",
-});
-
 mod layout;
 
-use bones::core::host_api::{log, publish, Level};
 use bones_messages::game_core::{
     BodyKind, EntityOp, EntityOpMessage, LoadTilemap, PhysicsWorlds, Shape, Sprite,
     SpritePresentation, TilesetImage,
 };
 use bones_messages::gfx::LoadSprite;
 use bones_messages::{EncodeMessage, Message};
+use bones_wasm_sdk::bindings::bones::extension::host_api::{log, publish, Level};
+use bones_wasm_sdk::bus;
 use game_messages::WILL_ENTITY_ID;
 use layout::{
     walls, Cast, Prop, PropKind, CHARACTERS, CHARACTER_HALF_H, CHARACTER_HALF_W, PROPS, PROP_KINDS,
@@ -112,7 +108,7 @@ fn character_sheet(cast: Cast) -> (&'static str, &'static [u8]) {
 }
 
 fn publish_entity_op(op: EntityOp) {
-    publish(EntityOpMessage::TOPIC, &EntityOpMessage(op).encode());
+    bus::publish(&EntityOpMessage(op));
 }
 
 fn load_sprite(id: u32, png_bytes: &[u8]) {
@@ -321,6 +317,8 @@ fn entity_ids() -> Vec<u32> {
         .collect()
 }
 
+use bones_wasm_sdk::Guest;
+
 struct Component;
 
 impl Guest for Component {
@@ -351,7 +349,7 @@ impl Guest for Component {
 }
 
 #[cfg(not(test))]
-export!(Component);
+bones_wasm_sdk::export!(Component);
 
 #[cfg(test)]
 mod tests;

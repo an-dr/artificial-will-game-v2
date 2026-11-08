@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
 
-use bones_messages::game_core::{Collision, EntityOp, EntityOpMessage};
-use bones_messages::gfx::{ClearDrawBatch, DrawRect, DrawSprite, DrawText};
-use bones_messages::input::KeyDown;
-use bones_messages::renderer::LogicalCanvas;
-use bones_messages::{DecodeMessage, EncodeMessage, Message};
-use bus::Envelope;
+use bones_kernel::bus::Envelope;
+use bones_kernel::messages::game_core::{Collision, EntityOp, EntityOpMessage};
+use bones_kernel::messages::gfx::{ClearDrawBatch, DrawRect, DrawSprite, DrawText};
+use bones_kernel::messages::input::KeyDown;
+use bones_kernel::messages::renderer::LogicalCanvas;
+use bones_kernel::messages::{DecodeMessage, EncodeMessage, Message};
 use game_messages::{
     AttackDirection, AttackRequested, HitConfirmed, PauseChanged, PlayerDamaged, PlayerDefeated,
     PlayerStats, RewardGranted,
@@ -30,19 +30,18 @@ impl Drop for SavesDir {
     }
 }
 
-fn press(built: &mut runner::BuiltEngine, key: &'static str) {
+fn press(built: &mut bones_kernel::BuiltKernel, key: &'static str) {
     built.runner.bus().publish(Envelope {
         topic: KeyDown::TOPIC.to_owned(),
         sender: "platform".to_owned(),
         correlation: None,
         payload: KeyDown { key }.encode(),
     });
-    built.runner.step(1.0 / 60.0);
-    built.supervisor.check();
+    built.step(1.0 / 60.0);
 }
 
 fn publish_message<M: Message + EncodeMessage>(
-    built: &mut runner::BuiltEngine,
+    built: &mut bones_kernel::BuiltKernel,
     sender: &str,
     message: M,
 ) {
@@ -54,27 +53,24 @@ fn publish_message<M: Message + EncodeMessage>(
     });
 }
 
-fn announce_logical_canvas(built: &mut runner::BuiltEngine, width: u32, height: u32) {
+fn announce_logical_canvas(built: &mut bones_kernel::BuiltKernel, width: u32, height: u32) {
     publish_message(built, "renderer", LogicalCanvas { width, height });
 }
 
-fn pump(built: &mut runner::BuiltEngine, frames: usize) {
+fn pump(built: &mut bones_kernel::BuiltKernel, frames: usize) {
     for _ in 0..frames {
-        built.runner.step(1.0 / 60.0);
-        built.supervisor.check();
+        built.step(1.0 / 60.0);
     }
 }
 
 fn assert_screen_title(
-    built: &mut runner::BuiltEngine,
+    built: &mut bones_kernel::BuiltKernel,
     captured_graphics: &Arc<Mutex<Vec<Envelope>>>,
     expected: &str,
 ) {
     captured_graphics.lock().unwrap().clear();
-    built.runner.step(1.0 / 60.0);
-    built.supervisor.check();
-    built.runner.step(1.0 / 60.0);
-    built.supervisor.check();
+    built.step(1.0 / 60.0);
+    built.step(1.0 / 60.0);
     let graphics = captured_graphics.lock().unwrap();
     assert!(
         graphics.iter().any(|event| {
@@ -91,12 +87,11 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
     let saves = SavesDir::create("menu");
     let extensions = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("extensions/target/wasm32-wasip2/release");
-    let mut built = runner::Engine::new()
-        .extensions_dir(extensions)
+    let mut built = crate::paths::catalog_dir(bones_kernel::Kernel::new(), &extensions)
         .startup_extension("menu")
         .extension_controller("menu")
         .saves_dir(saves.0.clone())
-        .module(game_core::GameCore::new())
+        .module(bones_kernel::game_core::GameCore::new())
         .build()
         .unwrap();
     announce_logical_canvas(&mut built, 800, 600);
@@ -110,8 +105,8 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
             graphics_sink.lock().unwrap().push(event.clone());
         });
     graphics_spy.subscribe("gfx/*");
-    built.runner.step(1.0 / 60.0);
-    built.runner.step(1.0 / 60.0);
+    built.step(1.0 / 60.0);
+    built.step(1.0 / 60.0);
     let graphics = captured_graphics.lock().unwrap();
     assert!(graphics.iter().any(|event| {
         event.topic == DrawRect::TOPIC
@@ -124,36 +119,19 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
     drop(graphics);
     assert_screen_title(&mut built, &captured_graphics, "ARTIFICIAL WILL");
 
-    assert!(built.supervisor.registry.call("test", "menu", &[]).is_ok());
-    assert!(built.supervisor.registry.call("test", "will", &[]).is_err());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_one", &[])
-        .is_err());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_two", &[])
-        .is_err());
+    assert!(built.registry.call("test", "menu", &[]).is_ok());
+    assert!(built.registry.call("test", "will", &[]).is_err());
+    assert!(built.registry.call("test", "level_one", &[]).is_err());
+    assert!(built.registry.call("test", "level_two", &[]).is_err());
 
     press(&mut built, "Return");
     assert_screen_title(&mut built, &captured_graphics, "SELECT LEVEL");
     press(&mut built, "Return");
-    built.runner.step(1.0 / 60.0);
-    built.supervisor.check();
+    built.step(1.0 / 60.0);
 
-    assert!(built.supervisor.registry.call("test", "will", &[]).is_ok());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_one", &[])
-        .is_ok());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_two", &[])
-        .is_err());
+    assert!(built.registry.call("test", "will", &[]).is_ok());
+    assert!(built.registry.call("test", "level_one", &[]).is_ok());
+    assert!(built.registry.call("test", "level_two", &[]).is_err());
 
     press(&mut built, "Escape");
     assert_screen_title(&mut built, &captured_graphics, "SYSTEM PAUSED");
@@ -162,41 +140,23 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
     press(&mut built, "Down");
     press(&mut built, "Return");
     assert_screen_title(&mut built, &captured_graphics, "ARTIFICIAL WILL");
-    built.runner.step(1.0 / 60.0);
-    built.supervisor.check();
+    built.step(1.0 / 60.0);
 
-    assert!(built.supervisor.registry.call("test", "will", &[]).is_err());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_one", &[])
-        .is_err());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_two", &[])
-        .is_err());
+    assert!(built.registry.call("test", "will", &[]).is_err());
+    assert!(built.registry.call("test", "level_one", &[]).is_err());
+    assert!(built.registry.call("test", "level_two", &[]).is_err());
 
     press(&mut built, "Return");
     assert_screen_title(&mut built, &captured_graphics, "SELECT LEVEL");
     press(&mut built, "Down");
     press(&mut built, "Return");
     for _ in 0..4 {
-        built.runner.step(1.0 / 60.0);
-        built.supervisor.check();
+        built.step(1.0 / 60.0);
     }
 
-    assert!(built.supervisor.registry.call("test", "will", &[]).is_ok());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_one", &[])
-        .is_err());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_two", &[])
-        .is_ok());
+    assert!(built.registry.call("test", "will", &[]).is_ok());
+    assert!(built.registry.call("test", "level_one", &[]).is_err());
+    assert!(built.registry.call("test", "level_two", &[]).is_ok());
     let graphics = captured_graphics.lock().unwrap();
     let drawn_sprite_ids = graphics
         .iter()
@@ -217,20 +177,11 @@ fn menu_controls_level_load_unload_and_switch_lifecycle() {
     press(&mut built, "Return");
     assert_screen_title(&mut built, &captured_graphics, "SELECT LEVEL");
     press(&mut built, "Return");
-    built.runner.step(1.0 / 60.0);
-    built.supervisor.check();
+    built.step(1.0 / 60.0);
 
-    assert!(built.supervisor.registry.call("test", "will", &[]).is_ok());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_one", &[])
-        .is_ok());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_two", &[])
-        .is_err());
+    assert!(built.registry.call("test", "will", &[]).is_ok());
+    assert!(built.registry.call("test", "level_one", &[]).is_ok());
+    assert!(built.registry.call("test", "level_two", &[]).is_err());
 }
 
 #[test]
@@ -238,12 +189,11 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
     let saves = SavesDir::create("combat");
     let extensions = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("extensions/target/wasm32-wasip2/release");
-    let mut built = runner::Engine::new()
-        .extensions_dir(extensions)
+    let mut built = crate::paths::catalog_dir(bones_kernel::Kernel::new(), &extensions)
         .startup_extension("menu")
         .extension_controller("menu")
         .saves_dir(saves.0.clone())
-        .module(game_core::GameCore::new())
+        .module(bones_kernel::game_core::GameCore::new())
         .build()
         .unwrap();
     announce_logical_canvas(&mut built, 960, 540);
@@ -331,14 +281,10 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
     press(&mut built, "Down");
     press(&mut built, "Return");
     pump(&mut built, 5);
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_two", &[])
-        .is_ok());
+    assert!(built.registry.call("test", "level_two", &[]).is_ok());
     captured.lock().unwrap().clear();
 
-    let attack_slime = |built: &mut runner::BuiltEngine, sequence| {
+    let attack_slime = |built: &mut bones_kernel::BuiltKernel, sequence| {
         publish_message(
             built,
             "will",
@@ -539,7 +485,7 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
                         && text.color.1 < 80
                         && text.color.2 < 80
                         && text.x == 480
-                        && text.align == bones_messages::gfx::TextAlign::Center
+                        && text.align == bones_kernel::messages::gfx::TextAlign::Center
                 })
         }));
         assert!(events.iter().any(|event| {
@@ -554,7 +500,7 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
                     text.screen_space
                         && text.text == "PRESS ENTER TO MAIN MENU"
                         && text.x == 480
-                        && text.align == bones_messages::gfx::TextAlign::Center
+                        && text.align == bones_kernel::messages::gfx::TextAlign::Center
                 })
         }));
         assert!(events.iter().any(|event| {
@@ -567,22 +513,14 @@ fn combat_rewards_hud_and_game_over_flow_across_extensions() {
                 })
         }));
     }
-    assert!(built.supervisor.registry.call("test", "will", &[]).is_ok());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_two", &[])
-        .is_ok());
+    assert!(built.registry.call("test", "will", &[]).is_ok());
+    assert!(built.registry.call("test", "level_two", &[]).is_ok());
 
     captured.lock().unwrap().clear();
     press(&mut built, "Return");
     pump(&mut built, 5);
-    assert!(built.supervisor.registry.call("test", "will", &[]).is_err());
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_two", &[])
-        .is_err());
+    assert!(built.registry.call("test", "will", &[]).is_err());
+    assert!(built.registry.call("test", "level_two", &[]).is_err());
     assert!(captured.lock().unwrap().iter().any(|event| {
         event.sender == "menu"
             && event.topic == DrawText::TOPIC
@@ -605,12 +543,11 @@ fn slime_contact_is_harmless_and_a_timed_attack_deals_damage() {
     let saves = SavesDir::create("slime-attack");
     let extensions = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("extensions/target/wasm32-wasip2/release");
-    let mut built = runner::Engine::new()
-        .extensions_dir(extensions)
+    let mut built = crate::paths::catalog_dir(bones_kernel::Kernel::new(), &extensions)
         .startup_extension("menu")
         .extension_controller("menu")
         .saves_dir(saves.0.clone())
-        .module(game_core::GameCore::new())
+        .module(bones_kernel::game_core::GameCore::new())
         .build()
         .unwrap();
     announce_logical_canvas(&mut built, 800, 600);
@@ -632,11 +569,7 @@ fn slime_contact_is_harmless_and_a_timed_attack_deals_damage() {
     press(&mut built, "Down");
     press(&mut built, "Return");
     pump(&mut built, 5);
-    assert!(built
-        .supervisor
-        .registry
-        .call("test", "level_two", &[])
-        .is_ok());
+    assert!(built.registry.call("test", "level_two", &[]).is_ok());
 
     captured.lock().unwrap().clear();
     publish_message(
@@ -688,12 +621,11 @@ fn white_harbour_loads_its_map_props_and_cast_without_enemies() {
     let saves = SavesDir::create("harbour");
     let extensions = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("extensions/target/wasm32-wasip2/release");
-    let mut built = runner::Engine::new()
-        .extensions_dir(extensions)
+    let mut built = crate::paths::catalog_dir(bones_kernel::Kernel::new(), &extensions)
         .startup_extension("menu")
         .extension_controller("menu")
         .saves_dir(saves.0.clone())
-        .module(game_core::GameCore::new())
+        .module(bones_kernel::game_core::GameCore::new())
         .build()
         .unwrap();
     announce_logical_canvas(&mut built, 960, 540);
@@ -715,7 +647,7 @@ fn white_harbour_loads_its_map_props_and_cast_without_enemies() {
     press(&mut built, "Return");
     pump(&mut built, 4);
 
-    let registry = &built.supervisor.registry;
+    let registry = &built.registry;
     assert!(registry.call("test", "level_three", &[]).is_ok());
     assert!(registry.call("test", "level_two", &[]).is_err());
     let events = captured.lock().unwrap();
@@ -726,8 +658,14 @@ fn white_harbour_loads_its_map_props_and_cast_without_enemies() {
         .map(|sprite| sprite.id)
         .collect();
     assert!(drawn.contains(&300), "harbour tiles are drawn");
-    assert!(drawn.iter().any(|id| (310..=319).contains(id)), "props are drawn");
-    assert!(drawn.contains(&330) && drawn.contains(&331), "spawn pad and beam are drawn");
+    assert!(
+        drawn.iter().any(|id| (310..=319).contains(id)),
+        "props are drawn"
+    );
+    assert!(
+        drawn.contains(&330) && drawn.contains(&331),
+        "spawn pad and beam are drawn"
+    );
     assert!(drawn.iter().any(|id| *id >= 340), "characters are drawn");
     assert!(!drawn.iter().any(|id| (30..=44).contains(id)), "no slimes");
 }

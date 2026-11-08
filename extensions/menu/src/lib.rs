@@ -1,10 +1,5 @@
 #![cfg_attr(test, allow(dead_code))]
 
-wit_bindgen::generate!({
-    path: "../../vendor/bones/wit",
-    world: "extension",
-});
-
 mod display_preferences;
 mod game_ui;
 mod level;
@@ -16,6 +11,8 @@ mod session_request;
 mod runtime;
 
 #[cfg_attr(test, allow(dead_code))]
+use bones_wasm_sdk::Guest;
+
 struct Component;
 
 impl Guest for Component {
@@ -38,4 +35,4 @@ impl Guest for Component {
 }
 
 #[cfg(not(test))]
-export!(Component);
+bones_wasm_sdk::export!(Component);
