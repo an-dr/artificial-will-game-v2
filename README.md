@@ -1,6 +1,12 @@
 # artificial-will-game-v2
 
-A 2D top-down game about Will, a TV-head robot, fighting his way through grass fields and overgrown ruins.
+[![AI Level 3](https://ai-level.dev/badge/standard/3.svg)](https://ai-level.dev/level-3)
+
+A 2D top-down game about Will, a TV-head robot, fighting his way through grass fields and overgrown ruins and wandering a peaceful harbour town.
+
+![Will on the white-stone plaza of White Harbour, with the Merchant and Gardener robots, flower pots, houses, and trees around him](docs/README/white-harbour.png)
+
+## Why
 
 This is a from-scratch reimplementation of [artificial-will-game](https://github.com/an-dr/artificial-will-game). The original runs on a hand-rolled C++/SDL2/EnTT engine; v2 runs on [bones](https://github.com/an-dr/bones), a native engine core that loads all game behavior as WASM extensions.
 
@@ -38,16 +44,31 @@ One command builds the game and, through [build.rs](build.rs), every extension i
 - Level One keeps the original grass map with pushable boxes; each box breaks in one hit and drops a fixed coin reward.
 - Level Two is an overgrown ruin with broken-stone ground, rock obstacles, and six slimes. Slimes chase Will inside their awareness radius, stop short of contact, and deal damage only when their visible attack reaches its strike frame. The wind-up can be escaped or interrupted; touching a slime alone is harmless.
 - Slimes take two hits and give one XP each; every three XP raises Will's level. Progression resets when the level session restarts or changes.
+- White Harbour is a coastal level with no enemies: sand, a promenade plaza, sea, white houses, a lighthouse, a pier, and an animated spawn pad. Four robot residents (Merchant, Gardener, Radio, Scrap) stand in Will's way; six translucent spirit visitors, people and animals, let him walk through them.
 - Losing the last life pauses the world on a game-over screen; Enter returns to the main screen.
+
+## Configuration
+
+The game reads two environment variables, both for inspecting or automating it:
+
+- `BONES_OFFSCREEN=1` renders into memory with no visible window.
+- `BONES_DEVTOOLS_PORT=<port>` opens the bones devtools channel on `127.0.0.1:<port>`: recorded messages, logs, `GET /screenshot`, `GET /frame`, pausing and stepping, and `POST /publish` to inject input. See [the devtools README](vendor/bones/crates/bones-kernel/bones-module-devtools/README.md).
+
+Display preferences (fullscreen, resolution) are set in the in-game Settings menu and saved between runs.
+
+## Documentation
+
+- [docs/architecture.md](docs/architecture.md): system boundaries, extension responsibilities, and assets and packaging.
+- [docs/design/](docs/design/): design notes, starting with the menu and level lifecycle.
+- [TECHDEBT.md](TECHDEBT.md): known compromises, such as sprite-sheet re-cutting, and the bones upgrades that remove them.
 
 ## Repository map
 
-- `src/` and `Cargo.toml`: the game binary `artificial-will`. It embeds bones directly as path dependencies (`runner`, `game-core`), following `vendor/bones/embedding-demo`, instead of running bones' generic `app` binary. Its `[workspace]` excludes `vendor/bones`, because `vendor/bones/shared/bones-messages` is a self-isolated workspace nested inside this repository.
+- `src/` and `Cargo.toml`: the game binary `artificial-will`. It embeds the bones 4 kernel as one path dependency (`bones-kernel`), following `vendor/bones/examples/embedding/custom-engine`, instead of running the stock `bones` binary. Its `[workspace]` excludes `vendor/bones`, because `vendor/bones/crates/bones-messages` is a self-isolated workspace nested inside this repository.
 - `extensions/`: a separate Cargo workspace targeting `wasm32-wasip2`. It holds the `menu`, `level-one`, `level-two`, `level-three`, and `will` components plus three shared libraries: `game-messages`, `sprite-sheet` (sprite-sheet and asset-pack JSON), and `game-assets` (the embedded third-party packs). See [extensions/README.md](extensions/README.md).
 - `assets/`: our own art in `william/`, `box.png`, and `robot_game_assets/` (procedural placeholder biomes and characters, used by `level-three`), and licensed packs in `third-party/<pack>/`. Each pack sits byte-for-byte under `upstream/` with our `pack.json` beside it, which records author, source, and license and gives every asset the game uses a stable id. Add or swap third-party art by editing the manifest, not game code.
 - `xtask/`: a Rust program that assembles a self-contained `dist/`.
 - `vendor/bones/`: the engine, a git submodule. Patches to it are committed inside that checkout and pushed upstream deliberately.
-- `agents/`: the AI-agent workflow policy, a git submodule; see [AGENTS.md](AGENTS.md).
 
 ## Development
 
@@ -66,12 +87,6 @@ cargo xtask dist
 ```
 
 It builds the game and every extension, then writes `dist/artificial-will(.exe)` with `dist/extensions/core/` (`menu.wasm`, `will.wasm`) and `dist/extensions/levels/` (`level_one.wasm`, `level_two.wasm`, `level_three.wasm`). The executable checks that grouped extension directory first. Copy `dist/` anywhere and run it as is.
-
-## Documentation
-
-- [docs/architecture.md](docs/architecture.md): system boundaries, extension responsibilities, and assets and packaging.
-- [docs/design/](docs/design/): design notes, starting with the menu and level lifecycle.
-- [TECHDEBT.md](TECHDEBT.md): known compromises, such as sprite-sheet re-cutting, and the bones upgrades that remove them.
 
 ## License
 
