@@ -4,10 +4,11 @@ Notes for AI agents working on this repo that cannot be deduced from the code al
 
 ## Primary instructions
 
-- Use `agents/AGENTS.md` as the base instruction
+- Use the base agents policy ([an-dr/agents](https://github.com/an-dr/agents)),
+  installed globally rather than vendored here, as the base instruction
 - Use `AGENTS.md` in the repo root and in the subfolders as scoped extensions of the base rules
 - Priority (later entries extend or overwrite earlier ones):
-  1. `REPO/agents/AGENTS.md` — base
+  1. the base agents policy
   2. `REPO/AGENTS.md` — this file
   3. `REPO/**/AGENTS.md` — any subdirectory AGENTS.md, chained by depth
 
@@ -22,13 +23,10 @@ bus) with game behavior shipped as WASM extensions.
 
 ## Conventions
 
-- `agents/` (root) and `vendor/bones/` are git submodules. `vendor/` is
-  where a vendored code dependency belongs — the same convention `bones`
-  itself uses for `vendor/pubsub-bus`, while `agents` (workflow tooling,
-  not code) stays at root, again matching how `bones` embeds it. `bones`
-  itself vendors nested submodules (`vendor/bones/agents`,
-  `vendor/bones/vendor/pubsub-bus`); run
-  `git submodule update --init --recursive` after cloning.
+- `vendor/bones/` is the only git submodule; `vendor/` is where a vendored
+  code dependency belongs, the same convention `bones` uses for its own
+  `vendor/pubsub-bus`. Run `git submodule update --init --recursive` after
+  cloning.
 - We *can* patch `vendor/bones` when it makes integration better (we own
   both repos) — commit those changes inside the `vendor/bones` checkout
   itself, on its own branch/history, never folded into a v2 commit. A
