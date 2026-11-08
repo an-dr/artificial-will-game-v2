@@ -89,3 +89,34 @@ pub(crate) fn cut(
     }
     encode(&strip)
 }
+
+/// Re-lays a grid tileset with every tile surrounded by `pad` copies of its
+/// own edge pixels, `pad` px margin and `2 * pad` px spacing. A renderer
+/// scaling tiles by a non-integer factor can sample a texel outside a
+/// tile's source rect; with the extrusion that texel is the tile's own
+/// edge instead of its atlas neighbour, so no seams show between tiles.
+pub(crate) fn extrude_tiles(png_bytes: &[u8], tile: u32, pad: u32) -> Result<Vec<u8>, SheetError> {
+    let source = decode(png_bytes)?;
+    let (cols, rows) = (source.width / tile, source.height / tile);
+    let cell = tile + 2 * pad;
+    let (width, height) = (cols * cell, rows * cell);
+    let mut pixels = vec![0u8; (width * height * 4) as usize];
+    for row in 0..rows {
+        for col in 0..cols {
+            for dy in 0..cell {
+                for dx in 0..cell {
+                    let sx = col * tile + dx.saturating_sub(pad).min(tile - 1);
+                    let sy = row * tile + dy.saturating_sub(pad).min(tile - 1);
+                    let from = ((sy * source.width + sx) * 4) as usize;
+                    let to = (((row * cell + dy) * width + col * cell + dx) * 4) as usize;
+                    pixels[to..to + 4].copy_from_slice(&source.pixels[from..from + 4]);
+                }
+            }
+        }
+    }
+    encode(&Rgba {
+        width,
+        height,
+        pixels,
+    })
+}

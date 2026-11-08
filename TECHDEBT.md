@@ -47,3 +47,11 @@ re-cut anyway, and it silently clips art that would move outside the frame.
 `origin_feet` through, and `FEET_TARGET` and `shift_feet_to` are deleted. Land
 this together with the source-rectangle change above, because both remove the
 cutting step.
+
+## Tilesets are extruded at load time
+
+**Where:** `extensions/sprite-sheet` (`extrude_tiles`), used by `extensions/level-three`.
+
+**What:** at non-integer window scales bones samples a texel outside a tile's source rectangle, so thin dark lines show along tile edges whose atlas neighbour is transparent or a different tile. Level three re-lays its tileset with 2 px of each tile's own edge pixels around it, and its `.tmx` declares the matching `margin="2" spacing="4"`.
+
+**Remove when:** bones samples tiles without bleeding (for example by insetting source rects or snapping draws to integer scale). Then drop the call and the `.tmx` attributes.

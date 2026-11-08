@@ -63,6 +63,13 @@ impl From<serde_json::Error> for SheetError {
     }
 }
 
+/// Pads every `tile`-sized cell of a grid tileset with `pad` px of its own
+/// edge pixels; the result has margin `pad` and spacing `2 * pad`. See
+/// `TECHDEBT.md`: a workaround for seams bones shows at non-integer scales.
+pub fn extrude_tiles(png_bytes: &[u8], tile: u32, pad: u32) -> Result<Vec<u8>, SheetError> {
+    strip::extrude_tiles(png_bytes, tile, pad)
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Animation {
     pub fps: f32,

@@ -145,3 +145,36 @@ fn asset_pack_resolves_images_and_sheets_by_id() {
     let files: Vec<&str> = pack.files().collect();
     assert_eq!(files, ["upstream/t.png", "upstream/m.png"]);
 }
+
+#[test]
+fn extruded_tiles_are_surrounded_by_their_own_edge_pixels() {
+    // Two 2x2 tiles side by side: red on the left, blue on the right.
+    let (red, blue) = ([255, 0, 0, 255], [0, 0, 255, 255]);
+    let mut pixels = Vec::new();
+    for _ in 0..2 {
+        pixels.extend(red.iter().chain(&red).chain(&blue).chain(&blue));
+    }
+    let mut source = Vec::new();
+    let mut encoder = png::Encoder::new(&mut source, 4, 2);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder
+        .write_header()
+        .unwrap()
+        .write_image_data(&pixels)
+        .unwrap();
+
+    let out = crate::extrude_tiles(&source, 2, 1).unwrap();
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(out));
+    decoder.set_transformations(png::Transformations::normalize_to_color8());
+    let mut reader = decoder.read_info().unwrap();
+    let mut buffer = vec![0; reader.output_buffer_size().unwrap()];
+    let info = reader.next_frame(&mut buffer).unwrap();
+    assert_eq!((info.width, info.height), (8, 4));
+    let at = |x: usize, y: usize| &buffer[(y * 8 + x) * 4..(y * 8 + x) * 4 + 4];
+    // Each 4 px cell is one tile padded by its own colour, never its neighbour's.
+    for y in 0..4 {
+        assert!((0..4).all(|x| at(x, y) == red));
+        assert!((4..8).all(|x| at(x, y) == blue));
+    }
+}
