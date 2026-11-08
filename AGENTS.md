@@ -12,6 +12,14 @@ Notes for AI agents working on this repo that cannot be deduced from the code al
   2. `REPO/AGENTS.md` — this file
   3. `REPO/**/AGENTS.md` — any subdirectory AGENTS.md, chained by depth
 
+## Game concept (read first)
+
+[docs/concept/](docs/concept/README.md) is the game's concept document and the
+most important document in this repository: features, levels, art, and
+architecture grow from it. Read it before designing or building anything.
+When a request or the code disagrees with it, say so instead of silently
+diverging; open questions in it are the author's to decide, not ours.
+
 ## Project
 
 This repo is a from-scratch reimplementation ("v2") of

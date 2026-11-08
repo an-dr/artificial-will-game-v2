@@ -58,6 +58,7 @@ Display preferences (fullscreen, resolution) are set in the in-game Settings men
 
 ## Documentation
 
+- [docs/concept/](docs/concept/README.md): the game concept — pitch, world and lore, gameplay, and characters. The game grows from it; read it first.
 - [docs/architecture.md](docs/architecture.md): system boundaries, extension responsibilities, and assets and packaging.
 - [docs/design/](docs/design/): design notes, starting with the menu and level lifecycle.
 - [TECHDEBT.md](TECHDEBT.md): known compromises, such as sprite-sheet re-cutting, and the bones upgrades that remove them.
